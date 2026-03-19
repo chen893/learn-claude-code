@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "extract": "tsx scripts/extract-content.ts",
+    "test": "node --import tsx --test scripts/*.test.ts src/lib/*.test.ts",
     "predev": "npm run extract",
     "dev": "next dev",
     "prebuild": "npm run extract",

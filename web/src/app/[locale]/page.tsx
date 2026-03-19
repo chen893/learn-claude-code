@@ -6,16 +6,15 @@ import { LEARNING_PATH, VERSION_META, LAYERS } from "@/lib/constants";
 import { LayerBadge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import versionsData from "@/data/generated/versions.json";
 import { MessageFlow } from "@/components/architecture/message-flow";
-
-const LAYER_DOT_COLORS: Record<string, string> = {
-  tools: "bg-blue-500",
-  planning: "bg-emerald-500",
-  memory: "bg-purple-500",
-  concurrency: "bg-amber-500",
-  collaboration: "bg-red-500",
-};
+import {
+  DEFAULT_LANGUAGE,
+  getCorePatternExample,
+  getVersion,
+  getVersionCountByLayer,
+  getVersionRoute,
+} from "@/lib/learning";
+import { usePreferredLanguage } from "@/hooks/usePreferredLanguage";
 
 const LAYER_BORDER_COLORS: Record<string, string> = {
   tools: "border-blue-500/30 hover:border-blue-500/60",
@@ -33,17 +32,14 @@ const LAYER_BAR_COLORS: Record<string, string> = {
   collaboration: "bg-red-500",
 };
 
-function getVersionData(id: string) {
-  return versionsData.versions.find((v) => v.id === id);
-}
-
 export default function HomePage() {
   const t = useTranslations("home");
   const locale = useLocale();
+  const language = usePreferredLanguage() || DEFAULT_LANGUAGE;
+  const corePatternExample = getCorePatternExample(language);
 
   return (
     <div className="flex flex-col gap-20 pb-16">
-      {/* Hero Section */}
       <section className="flex flex-col items-center px-2 pt-8 text-center sm:pt-20">
         <h1 className="text-3xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
           {t("hero_title")}
@@ -62,99 +58,59 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Core Pattern Section */}
       <section>
         <div className="mb-6 text-center">
           <h2 className="text-2xl font-bold sm:text-3xl">{t("core_pattern")}</h2>
-          <p className="mt-2 text-[var(--color-text-secondary)]">
-            {t("core_pattern_desc")}
-          </p>
+          <p className="mt-2 text-[var(--color-text-secondary)]">{t("core_pattern_desc")}</p>
         </div>
         <div className="mx-auto max-w-2xl overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
           <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-2.5">
             <span className="h-3 w-3 rounded-full bg-red-500/70" />
             <span className="h-3 w-3 rounded-full bg-yellow-500/70" />
             <span className="h-3 w-3 rounded-full bg-green-500/70" />
-            <span className="ml-3 text-xs text-zinc-500">agent_loop.py</span>
+            <span className="ml-3 text-xs text-zinc-500">{corePatternExample.filename}</span>
           </div>
           <pre className="overflow-x-auto p-4 text-sm leading-relaxed">
             <code>
-              <span className="text-purple-400">while</span>
-              <span className="text-zinc-300"> </span>
-              <span className="text-orange-300">True</span>
-              <span className="text-zinc-500">:</span>
-              {"\n"}
-              <span className="text-zinc-300">{"    "}response = client.messages.</span>
-              <span className="text-blue-400">create</span>
-              <span className="text-zinc-500">(</span>
-              <span className="text-zinc-300">messages=</span>
-              <span className="text-zinc-300">messages</span>
-              <span className="text-zinc-500">,</span>
-              <span className="text-zinc-300"> tools=</span>
-              <span className="text-zinc-300">tools</span>
-              <span className="text-zinc-500">)</span>
-              {"\n"}
-              <span className="text-purple-400">{"    "}if</span>
-              <span className="text-zinc-300"> response.stop_reason != </span>
-              <span className="text-green-400">&quot;tool_use&quot;</span>
-              <span className="text-zinc-500">:</span>
-              {"\n"}
-              <span className="text-purple-400">{"        "}break</span>
-              {"\n"}
-              <span className="text-purple-400">{"    "}for</span>
-              <span className="text-zinc-300"> tool_call </span>
-              <span className="text-purple-400">in</span>
-              <span className="text-zinc-300"> response.content</span>
-              <span className="text-zinc-500">:</span>
-              {"\n"}
-              <span className="text-zinc-300">{"        "}result = </span>
-              <span className="text-blue-400">execute_tool</span>
-              <span className="text-zinc-500">(</span>
-              <span className="text-zinc-300">tool_call.name</span>
-              <span className="text-zinc-500">,</span>
-              <span className="text-zinc-300"> tool_call.input</span>
-              <span className="text-zinc-500">)</span>
-              {"\n"}
-              <span className="text-zinc-300">{"        "}messages.</span>
-              <span className="text-blue-400">append</span>
-              <span className="text-zinc-500">(</span>
-              <span className="text-zinc-300">result</span>
-              <span className="text-zinc-500">)</span>
+              {corePatternExample.lines.map((line, lineIndex) => (
+                <span key={lineIndex} className="block whitespace-pre">
+                  {line.map((token, tokenIndex) => (
+                    <span key={`${lineIndex}-${tokenIndex}`} className={token.className}>
+                      {token.text}
+                    </span>
+                  ))}
+                </span>
+              ))}
             </code>
           </pre>
         </div>
       </section>
 
-      {/* Message Flow Visualization */}
       <section>
         <div className="mb-6 text-center">
           <h2 className="text-2xl font-bold sm:text-3xl">{t("message_flow")}</h2>
-          <p className="mt-2 text-[var(--color-text-secondary)]">
-            {t("message_flow_desc")}
-          </p>
+          <p className="mt-2 text-[var(--color-text-secondary)]">{t("message_flow_desc")}</p>
         </div>
         <div className="mx-auto max-w-2xl">
           <MessageFlow />
         </div>
       </section>
 
-      {/* Learning Path Preview */}
       <section>
         <div className="mb-6 text-center">
           <h2 className="text-2xl font-bold sm:text-3xl">{t("learning_path")}</h2>
-          <p className="mt-2 text-[var(--color-text-secondary)]">
-            {t("learning_path_desc")}
-          </p>
+          <p className="mt-2 text-[var(--color-text-secondary)]">{t("learning_path_desc")}</p>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {LEARNING_PATH.map((versionId) => {
             const meta = VERSION_META[versionId];
-            const data = getVersionData(versionId);
+            const data = getVersion(language, versionId);
             if (!meta || !data) return null;
+
             return (
               <Link
                 key={versionId}
-                href={`/${locale}/${versionId}`}
+                href={getVersionRoute(locale, language, versionId)}
                 className="group block"
               >
                 <Card
@@ -182,13 +138,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Layer Overview */}
       <section>
         <div className="mb-6 text-center">
           <h2 className="text-2xl font-bold sm:text-3xl">{t("layers_title")}</h2>
-          <p className="mt-2 text-[var(--color-text-secondary)]">
-            {t("layers_desc")}
-          </p>
+          <p className="mt-2 text-[var(--color-text-secondary)]">{t("layers_desc")}</p>
         </div>
         <div className="flex flex-col gap-3">
           {LAYERS.map((layer) => (
@@ -206,19 +159,22 @@ export default function HomePage() {
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-semibold">{layer.label}</h3>
                   <span className="text-xs text-[var(--color-text-secondary)]">
-                    {layer.versions.length} {t("versions_in_layer")}
+                    {getVersionCountByLayer(language, layer.versions)} {t("versions_in_layer")}
                   </span>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  {layer.versions.map((vid) => {
-                    const meta = VERSION_META[vid];
+                  {layer.versions.map((versionId) => {
+                    const meta = VERSION_META[versionId];
+                    const version = getVersion(language, versionId);
+                    if (!version) return null;
+
                     return (
-                      <Link key={vid} href={`/${locale}/${vid}`}>
+                      <Link key={versionId} href={getVersionRoute(locale, language, versionId)}>
                         <LayerBadge
                           layer={layer.id}
                           className="cursor-pointer transition-opacity hover:opacity-80"
                         >
-                          {vid}: {meta?.title}
+                          {versionId}: {meta?.title}
                         </LayerBadge>
                       </Link>
                     );

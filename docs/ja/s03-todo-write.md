@@ -12,7 +12,7 @@
 
 ## 解決策
 
-```
+```text
 +--------+      +-------+      +---------+
 |  User  | ---> |  LLM  | ---> | Tools   |
 | prompt |      |       |      | + todo  |
@@ -36,6 +36,8 @@
 
 1. TodoManagerはアイテムのリストをステータス付きで保持する。`in_progress`にできるのは同時に1つだけ。
 
+<Lang when="python">
+
 ```python
 class TodoManager:
     def update(self, items: list) -> str:
@@ -52,7 +54,45 @@ class TodoManager:
         return self.render()
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+class TodoManager {
+  private items: TodoItem[] = [];
+
+  update(items: unknown): string {
+    if (!Array.isArray(items)) {
+      throw new Error("items must be an array");
+    }
+
+    let inProgressCount = 0;
+    const validated = items.map((item, index) => {
+      const record = (item ?? {}) as Record<string, unknown>;
+      const text = String(record.text ?? "").trim();
+      const status = String(record.status ?? "pending").toLowerCase() as TodoStatus;
+      const id = String(record.id ?? index + 1);
+
+      if (status === "in_progress") inProgressCount += 1;
+      return { id, text, status };
+    });
+
+    if (inProgressCount > 1) {
+      throw new Error("Only one task can be in_progress at a time");
+    }
+
+    this.items = validated;
+    return this.render();
+  }
+}
+```
+
+</Lang>
+
 2. `todo`ツールは他のツールと同様にディスパッチマップに追加される。
+
+<Lang when="python">
 
 ```python
 TOOL_HANDLERS = {
@@ -61,7 +101,22 @@ TOOL_HANDLERS = {
 }
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+const TOOL_HANDLERS = {
+  // ...base tools...
+  todo: (input) => TODO.update(input.items),
+};
+```
+
+</Lang>
+
 3. nagリマインダーが、モデルが3ラウンド以上`todo`を呼ばなかった場合にナッジを注入する。
+
+<Lang when="python">
 
 ```python
 if rounds_since_todo >= 3 and messages:
@@ -72,6 +127,21 @@ if rounds_since_todo >= 3 and messages:
             "text": "<reminder>Update your todos.</reminder>",
         })
 ```
+
+</Lang>
+
+<Lang when="ts">
+
+```ts
+if (roundsSinceTodo >= 3) {
+  results.unshift({
+    type: "text",
+    text: "<reminder>Update your todos.</reminder>",
+  });
+}
+```
+
+</Lang>
 
 「一度にin_progressは1つだけ」の制約が逐次的な集中を強制し、nagリマインダーが説明責任を生む。
 
@@ -88,9 +158,30 @@ if rounds_since_todo >= 3 and messages:
 
 ```sh
 cd learn-claude-code
+```
+
+<Lang when="python">
+
+```sh
 python agents/s03_todo_write.py
 ```
 
 1. `Refactor the file hello.py: add type hints, docstrings, and a main guard`
 2. `Create a Python package with __init__.py, utils.py, and tests/test_utils.py`
 3. `Review all Python files and fix any style issues`
+
+</Lang>
+
+<Lang when="ts">
+
+```sh
+cd agents-ts
+npm install
+npm run s03
+```
+
+1. `Refactor the file hello.ts: add type annotations, comments, and a small CLI entry`
+2. `Create a TypeScript package with index.ts, utils.ts, and tests/utils.test.ts`
+3. `Review all TypeScript files and fix any style issues`
+
+</Lang>

@@ -240,6 +240,10 @@ cp .env.example .env   # Edit .env with your ANTHROPIC_API_KEY
 python agents/s01_agent_loop.py       # Start here
 python agents/s12_worktree_task_isolation.py  # Full progression endpoint
 python agents/s_full.py               # Capstone: all mechanisms combined
+
+cd agents-ts && npm install
+npm run s01                           # TypeScript version entrypoint
+npm run s12                           # TypeScript full progression endpoint
 ```
 
 ### Web Platform
@@ -290,6 +294,7 @@ s08  Background Tasks        [6]     s10  Team Protocols          [12]
 learn-claude-code/
 |
 |-- agents/                        # Python reference implementations (s01-s12 + s_full capstone)
+|-- agents-ts/                     # TypeScript runnable implementations (s01-s12)
 |-- docs/{en,zh,ja}/               # Mental-model-first documentation (3 languages)
 |-- web/                           # Interactive learning platform (Next.js)
 |-- skills/                        # Skill files for s05

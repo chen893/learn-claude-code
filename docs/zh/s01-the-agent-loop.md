@@ -12,7 +12,7 @@
 
 ## 解决方案
 
-```
+```text
 +--------+      +-------+      +---------+
 |  User  | ---> |  LLM  | ---> |  Tool   |
 | prompt |      |       |      | execute |
@@ -29,11 +29,25 @@
 
 1. 用户 prompt 作为第一条消息。
 
+<Lang when="python">
+
 ```python
 messages.append({"role": "user", "content": query})
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+history.push({ role: "user", content: query });
+```
+
+</Lang>
+
 2. 将消息和工具定义一起发给 LLM。
+
+<Lang when="python">
 
 ```python
 response = client.messages.create(
@@ -42,7 +56,25 @@ response = client.messages.create(
 )
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+const response = await client.messages.create({
+  model: MODEL,
+  system: SYSTEM,
+  messages: history,
+  tools: TOOLS,
+  max_tokens: 8000,
+});
+```
+
+</Lang>
+
 3. 追加助手响应。检查 `stop_reason` -- 如果模型没有调用工具, 结束。
+
+<Lang when="python">
 
 ```python
 messages.append({"role": "assistant", "content": response.content})
@@ -50,7 +82,26 @@ if response.stop_reason != "tool_use":
     return
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+history.push({
+  role: "assistant",
+  content: response.content,
+});
+
+if (response.stop_reason !== "tool_use") {
+  return;
+}
+```
+
+</Lang>
+
 4. 执行每个工具调用, 收集结果, 作为 user 消息追加。回到第 2 步。
+
+<Lang when="python">
 
 ```python
 results = []
@@ -65,7 +116,27 @@ for block in response.content:
 messages.append({"role": "user", "content": results})
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+const results = response.content
+  .filter((block) => block.type === "tool_use")
+  .map((block) => ({
+    type: "tool_result" as const,
+    tool_use_id: block.id,
+    content: runBash(block.input.command),
+  }));
+
+history.push({ role: "user", content: results });
+```
+
+</Lang>
+
 组装为一个完整函数:
+
+<Lang when="python">
 
 ```python
 def agent_loop(query):
@@ -92,6 +163,42 @@ def agent_loop(query):
         messages.append({"role": "user", "content": results})
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+export async function agentLoop(history: Message[]) {
+  while (true) {
+    const response = await client.messages.create({
+      model: MODEL,
+      system: SYSTEM,
+      messages: history,
+      tools: TOOLS,
+      max_tokens: 8000,
+    });
+
+    history.push({ role: "assistant", content: response.content });
+
+    if (response.stop_reason !== "tool_use") {
+      return;
+    }
+
+    const results = response.content
+      .filter((block) => block.type === "tool_use")
+      .map((block) => ({
+        type: "tool_result" as const,
+        tool_use_id: block.id,
+        content: runBash(block.input.command),
+      }));
+
+    history.push({ role: "user", content: results });
+  }
+}
+```
+
+</Lang>
+
 不到 30 行, 这就是整个智能体。后面 11 个章节都在这个循环上叠加机制 -- 循环本身始终不变。
 
 ## 变更内容
@@ -107,6 +214,11 @@ def agent_loop(query):
 
 ```sh
 cd learn-claude-code
+```
+
+<Lang when="python">
+
+```sh
 python agents/s01_agent_loop.py
 ```
 
@@ -116,3 +228,22 @@ python agents/s01_agent_loop.py
 2. `List all Python files in this directory`
 3. `What is the current git branch?`
 4. `Create a directory called test_output and write 3 files in it`
+
+</Lang>
+
+<Lang when="ts">
+
+```sh
+cd agents-ts
+npm install
+npm run s01
+```
+
+试试这些 prompt (英文 prompt 对 LLM 效果更好, 也可以用中文):
+
+1. `Create a file called hello.ts that logs "Hello, World!"`
+2. `List all TypeScript files in this directory`
+3. `What is the current git branch?`
+4. `Create a directory called test_output and write 3 files in it`
+
+</Lang>

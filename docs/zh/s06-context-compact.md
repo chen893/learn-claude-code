@@ -46,6 +46,8 @@ continue    [Layer 2: auto_compact]
 
 1. **第一层 -- micro_compact**: 每次 LLM 调用前, 将旧的 tool result 替换为占位符。
 
+<Lang when="python">
+
 ```python
 def micro_compact(messages: list) -> list:
     tool_results = []
@@ -62,7 +64,40 @@ def micro_compact(messages: list) -> list:
     return messages
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+function microCompact(messages: Message[]): Message[] {
+  const toolResults: ToolResultBlock[] = [];
+
+  for (const message of messages) {
+    if (message.role !== "user" || !Array.isArray(message.content)) continue;
+    for (const part of message.content) {
+      if (isToolResultBlock(part)) {
+        toolResults.push(part);
+      }
+    }
+  }
+
+  if (toolResults.length <= KEEP_RECENT) {
+    return messages;
+  }
+
+  for (const result of toolResults.slice(0, -KEEP_RECENT)) {
+    result.content = `[Previous: used ${toolName}]`;
+  }
+
+  return messages;
+}
+```
+
+</Lang>
+
 2. **第二层 -- auto_compact**: token 超过阈值时, 保存完整对话到磁盘, 让 LLM 做摘要。
+
+<Lang when="python">
 
 ```python
 def auto_compact(messages: list) -> list:
@@ -85,9 +120,41 @@ def auto_compact(messages: list) -> list:
     ]
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+async function autoCompact(messages: Message[]): Promise<Message[]> {
+  const transcriptPath = resolve(TRANSCRIPT_DIR, `transcript_${Date.now()}.jsonl`);
+  for (const message of messages) {
+    appendFileSync(transcriptPath, `${JSON.stringify(message)}\n`, "utf8");
+  }
+
+  const response = await client.messages.create({
+    model: MODEL,
+    messages: [{
+      role: "user",
+      content: "Summarize this conversation for continuity...\n\n" +
+        JSON.stringify(messages).slice(0, 80_000),
+    }],
+    max_tokens: 2000,
+  });
+
+  return [
+    { role: "user", content: `[Conversation compressed. Transcript: ${transcriptPath}]` },
+    { role: "assistant", content: "Understood. I have the context from the summary. Continuing." },
+  ];
+}
+```
+
+</Lang>
+
 3. **第三层 -- manual compact**: `compact` 工具按需触发同样的摘要机制。
 
 4. 循环整合三层:
+
+<Lang when="python">
 
 ```python
 def agent_loop(messages: list):
@@ -100,6 +167,31 @@ def agent_loop(messages: list):
         if manual_compact:
             messages[:] = auto_compact(messages)       # Layer 3
 ```
+
+</Lang>
+
+<Lang when="ts">
+
+```ts
+export async function agentLoop(messages: Message[]) {
+  while (true) {
+    microCompact(messages);
+
+    if (estimateTokens(messages) > THRESHOLD) {
+      messages.splice(0, messages.length, ...(await autoCompact(messages)));
+    }
+
+    const response = await client.messages.create(...);
+    // ... tool execution ...
+
+    if (manualCompact) {
+      messages.splice(0, messages.length, ...(await autoCompact(messages)));
+    }
+  }
+}
+```
+
+</Lang>
 
 完整历史通过 transcript 保存在磁盘上。信息没有真正丢失, 只是移出了活跃上下文。
 
@@ -117,11 +209,33 @@ def agent_loop(messages: list):
 
 ```sh
 cd learn-claude-code
-python agents/s06_context_compact.py
 ```
 
-试试这些 prompt (英文 prompt 对 LLM 效果更好, 也可以用中文):
+试试这些 prompt:
+
+<Lang when="python">
+
+```sh
+python agents/s06_context_compact.py
+```
 
 1. `Read every Python file in the agents/ directory one by one` (观察 micro-compact 替换旧结果)
 2. `Keep reading files until compression triggers automatically`
 3. `Use the compact tool to manually compress the conversation`
+
+</Lang>
+
+<Lang when="ts">
+
+```sh
+cd agents-ts
+npm install
+npm run s06
+```
+
+1. `Read every TypeScript file in the agents-ts directory one by one` (观察 micro-compact 替换旧结果)
+2. `Keep reading files until compression triggers automatically`
+3. `Use the compact tool to manually compress the conversation`
+
+</Lang>
+

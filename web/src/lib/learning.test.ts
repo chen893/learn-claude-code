@@ -1,0 +1,33 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { getCorePatternExample, getPathnameForLanguage } from "./learning";
+
+function flattenExample(example: ReturnType<typeof getCorePatternExample>) {
+  return example.lines.map((line) => line.map((token) => token.text).join("")).join("\n");
+}
+
+test("getPathnameForLanguage rewrites detail page language segment", () => {
+  assert.equal(getPathnameForLanguage("/zh/ts/s09", "python"), "/zh/python/s09");
+});
+
+test("getPathnameForLanguage rewrites diff page language segment", () => {
+  assert.equal(getPathnameForLanguage("/en/python/s10/diff", "ts"), "/en/ts/s10/diff");
+});
+
+test("getPathnameForLanguage keeps non-language routes unchanged", () => {
+  assert.equal(getPathnameForLanguage("/ja/timeline", "ts"), "/ja/timeline");
+});
+
+test("getCorePatternExample returns python homepage sample", () => {
+  const sample = getCorePatternExample("python");
+  assert.equal(sample.filename, "agent_loop.py");
+  assert.match(flattenExample(sample), /while True:/);
+  assert.equal(sample.lines[0][0]?.className, "text-purple-400");
+});
+
+test("getCorePatternExample returns typescript homepage sample", () => {
+  const sample = getCorePatternExample("ts");
+  assert.equal(sample.filename, "s01_agent_loop.ts");
+  assert.match(flattenExample(sample), /while \(true\)/);
+  assert.equal(sample.lines[1][0]?.className, "text-purple-400");
+});

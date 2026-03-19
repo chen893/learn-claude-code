@@ -45,7 +45,9 @@ skills/
     SKILL.md       # ---\n name: code-review\n description: Review code\n ---\n ...
 ```
 
-2. SkillLoader 递归扫描 `SKILL.md` 文件, 用目录名作为技能标识。
+2. SkillLoader 递归扫描 `SKILL.md` 文件, 并用目录名作为兜底技能标识。
+
+<Lang when="python">
 
 ```python
 class SkillLoader:
@@ -71,7 +73,43 @@ class SkillLoader:
         return f"<skill name=\"{name}\">\n{skill['body']}\n</skill>"
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+class SkillLoader {
+  skills: Record<string, SkillRecord> = {};
+
+  constructor(private skillsDir: string) {
+    this.loadAll();
+  }
+
+  private loadAll() {
+    for (const filePath of collectSkillFiles(this.skillsDir)) {
+      const text = readFileSync(filePath, "utf8");
+      const { meta, body } = parseFrontmatter(text);
+      const fallbackName = filePath.replace(/\\/g, "/").split("/").slice(-2, -1)[0] ?? "unknown";
+      const name = meta.name || fallbackName;
+      this.skills[name] = { meta, body, path: filePath };
+    }
+  }
+
+  getContent(name: string): string {
+    const skill = this.skills[name];
+    if (!skill) {
+      return `Error: Unknown skill '${name}'.`;
+    }
+    return `<skill name="${name}">\n${skill.body}\n</skill>`;
+  }
+}
+```
+
+</Lang>
+
 3. 第一层写入系统提示。第二层不过是 dispatch map 中的又一个工具。
+
+<Lang when="python">
 
 ```python
 SYSTEM = f"""You are a coding agent at {WORKDIR}.
@@ -83,6 +121,25 @@ TOOL_HANDLERS = {
     "load_skill": lambda **kw: SKILL_LOADER.get_content(kw["name"]),
 }
 ```
+
+</Lang>
+
+<Lang when="ts">
+
+```ts
+const SYSTEM = `You are a coding agent at ${WORKDIR}.
+Use load_skill to access specialized knowledge before tackling unfamiliar topics.
+
+Skills available:
+${skillLoader.getDescriptions()}`;
+
+const TOOL_HANDLERS = {
+  // ...base tools...
+  load_skill: (input) => skillLoader.getContent(String(input.name ?? "")),
+};
+```
+
+</Lang>
 
 模型知道有哪些技能 (便宜), 需要时再加载完整内容 (贵)。
 
@@ -99,12 +156,35 @@ TOOL_HANDLERS = {
 
 ```sh
 cd learn-claude-code
-python agents/s05_skill_loading.py
 ```
 
-试试这些 prompt (英文 prompt 对 LLM 效果更好, 也可以用中文):
+试试这些 prompt:
+
+<Lang when="python">
+
+```sh
+python agents/s05_skill_loading.py
+```
 
 1. `What skills are available?`
 2. `Load the agent-builder skill and follow its instructions`
 3. `I need to do a code review -- load the relevant skill first`
 4. `Build an MCP server using the mcp-builder skill`
+
+</Lang>
+
+<Lang when="ts">
+
+```sh
+cd agents-ts
+npm install
+npm run s05
+```
+
+1. `What skills are available?`
+2. `Load the agent-builder skill and follow its instructions`
+3. `I need to do a code review -- load the relevant skill first`
+4. `Build an MCP server using the mcp-builder skill`
+
+</Lang>
+

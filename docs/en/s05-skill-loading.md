@@ -45,7 +45,9 @@ skills/
     SKILL.md       # ---\n name: code-review\n description: Review code\n ---\n ...
 ```
 
-2. SkillLoader scans for `SKILL.md` files, uses the directory name as the skill identifier.
+2. SkillLoader scans for `SKILL.md` files and uses the directory name as the fallback skill identifier.
+
+<Lang when="python">
 
 ```python
 class SkillLoader:
@@ -71,7 +73,43 @@ class SkillLoader:
         return f"<skill name=\"{name}\">\n{skill['body']}\n</skill>"
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+class SkillLoader {
+  skills: Record<string, SkillRecord> = {};
+
+  constructor(private skillsDir: string) {
+    this.loadAll();
+  }
+
+  private loadAll() {
+    for (const filePath of collectSkillFiles(this.skillsDir)) {
+      const text = readFileSync(filePath, "utf8");
+      const { meta, body } = parseFrontmatter(text);
+      const fallbackName = filePath.replace(/\\/g, "/").split("/").slice(-2, -1)[0] ?? "unknown";
+      const name = meta.name || fallbackName;
+      this.skills[name] = { meta, body, path: filePath };
+    }
+  }
+
+  getContent(name: string): string {
+    const skill = this.skills[name];
+    if (!skill) {
+      return `Error: Unknown skill '${name}'.`;
+    }
+    return `<skill name="${name}">\n${skill.body}\n</skill>`;
+  }
+}
+```
+
+</Lang>
+
 3. Layer 1 goes into the system prompt. Layer 2 is just another tool handler.
+
+<Lang when="python">
 
 ```python
 SYSTEM = f"""You are a coding agent at {WORKDIR}.
@@ -83,6 +121,25 @@ TOOL_HANDLERS = {
     "load_skill": lambda **kw: SKILL_LOADER.get_content(kw["name"]),
 }
 ```
+
+</Lang>
+
+<Lang when="ts">
+
+```ts
+const SYSTEM = `You are a coding agent at ${WORKDIR}.
+Use load_skill to access specialized knowledge before tackling unfamiliar topics.
+
+Skills available:
+${skillLoader.getDescriptions()}`;
+
+const TOOL_HANDLERS = {
+  // ...base tools...
+  load_skill: (input) => skillLoader.getContent(String(input.name ?? "")),
+};
+```
+
+</Lang>
 
 The model learns what skills exist (cheap) and loads them when relevant (expensive).
 
@@ -99,6 +156,11 @@ The model learns what skills exist (cheap) and loads them when relevant (expensi
 
 ```sh
 cd learn-claude-code
+```
+
+<Lang when="python">
+
+```sh
 python agents/s05_skill_loading.py
 ```
 
@@ -106,3 +168,21 @@ python agents/s05_skill_loading.py
 2. `Load the agent-builder skill and follow its instructions`
 3. `I need to do a code review -- load the relevant skill first`
 4. `Build an MCP server using the mcp-builder skill`
+
+</Lang>
+
+<Lang when="ts">
+
+```sh
+cd agents-ts
+npm install
+npm run s05
+```
+
+1. `What skills are available?`
+2. `Load the agent-builder skill and follow its instructions`
+3. `I need to do a code review -- load the relevant skill first`
+4. `Build an MCP server using the mcp-builder skill`
+
+</Lang>
+

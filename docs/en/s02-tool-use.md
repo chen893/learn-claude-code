@@ -14,7 +14,7 @@ The key insight: adding tools does not require changing the loop.
 
 ## Solution
 
-```
+```text
 +--------+      +-------+      +------------------+
 |  User  | ---> |  LLM  | ---> | Tool Dispatch    |
 | prompt |      |       |      | {                |
@@ -33,6 +33,8 @@ One lookup replaces any if/elif chain.
 
 1. Each tool gets a handler function. Path sandboxing prevents workspace escape.
 
+<Lang when="python">
+
 ```python
 def safe_path(p: str) -> Path:
     path = (WORKDIR / p).resolve()
@@ -48,7 +50,26 @@ def run_read(path: str, limit: int = None) -> str:
     return "\n".join(lines)[:50000]
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+function safePath(relativePath: string): string {
+  const filePath = resolve(WORKDIR, relativePath);
+  const normalizedWorkdir = `${WORKDIR}${process.platform === "win32" ? "\\" : "/"}`;
+  if (filePath !== WORKDIR && !filePath.startsWith(normalizedWorkdir)) {
+    throw new Error(`Path escapes workspace: ${relativePath}`);
+  }
+  return filePath;
+}
+```
+
+</Lang>
+
 2. The dispatch map links tool names to handlers.
+
+<Lang when="python">
 
 ```python
 TOOL_HANDLERS = {
@@ -60,7 +81,25 @@ TOOL_HANDLERS = {
 }
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+const TOOL_HANDLERS = {
+  bash: (input) => runBash(String(input.command ?? "")),
+  read_file: (input) => runRead(String(input.path ?? ""), Number(input.limit ?? 0) || undefined),
+  write_file: (input) => runWrite(String(input.path ?? ""), String(input.content ?? "")),
+  edit_file: (input) =>
+    runEdit(String(input.path ?? ""), String(input.old_text ?? ""), String(input.new_text ?? "")),
+};
+```
+
+</Lang>
+
 3. In the loop, look up the handler by name. The loop body itself is unchanged from s01.
+
+<Lang when="python">
 
 ```python
 for block in response.content:
@@ -74,6 +113,29 @@ for block in response.content:
             "content": output,
         })
 ```
+
+</Lang>
+
+<Lang when="ts">
+
+```ts
+for (const block of response.content) {
+  if (block.type !== "tool_use") continue;
+
+  const handler = TOOL_HANDLERS[block.name as ToolUseName];
+  const output = handler
+    ? handler(block.input as Record<string, unknown>)
+    : `Unknown tool: ${block.name}`;
+
+  results.push({
+    type: "tool_result",
+    tool_use_id: block.id,
+    content: output,
+  });
+}
+```
+
+</Lang>
 
 Add a tool = add a handler + add a schema entry. The loop never changes.
 
@@ -90,6 +152,11 @@ Add a tool = add a handler + add a schema entry. The loop never changes.
 
 ```sh
 cd learn-claude-code
+```
+
+<Lang when="python">
+
+```sh
 python agents/s02_tool_use.py
 ```
 
@@ -97,3 +164,20 @@ python agents/s02_tool_use.py
 2. `Create a file called greet.py with a greet(name) function`
 3. `Edit greet.py to add a docstring to the function`
 4. `Read greet.py to verify the edit worked`
+
+</Lang>
+
+<Lang when="ts">
+
+```sh
+cd agents-ts
+npm install
+npm run s02
+```
+
+1. `Read the file package.json`
+2. `Create a file called greet.ts with a greet(name: string) function`
+3. `Edit greet.ts to add a JSDoc comment`
+4. `Read greet.ts to verify the edit worked`
+
+</Lang>

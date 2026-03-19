@@ -7,9 +7,16 @@ interface SourceViewerProps {
   filename: string;
 }
 
-function highlightLine(line: string): React.ReactNode[] {
+function getLanguageFromFilename(filename: string): "python" | "ts" {
+  return filename.endsWith(".ts") ? "ts" : "python";
+}
+
+function highlightLine(line: string, language: "python" | "ts"): React.ReactNode[] {
   const trimmed = line.trimStart();
-  if (trimmed.startsWith("#")) {
+  if (
+    (language === "python" && trimmed.startsWith("#")) ||
+    (language === "ts" && trimmed.startsWith("//"))
+  ) {
     return [
       <span key={0} className="text-zinc-400 italic">
         {line}
@@ -23,7 +30,10 @@ function highlightLine(line: string): React.ReactNode[] {
       </span>,
     ];
   }
-  if (trimmed.startsWith('"""') || trimmed.startsWith("'''")) {
+  if (
+    (language === "python" && (trimmed.startsWith('"""') || trimmed.startsWith("'''"))) ||
+    (language === "ts" && (trimmed.startsWith("/*") || trimmed.startsWith("*") || trimmed.startsWith("*/")))
+  ) {
     return [
       <span key={0} className="text-emerald-500">
         {line}
@@ -31,33 +41,46 @@ function highlightLine(line: string): React.ReactNode[] {
     ];
   }
 
-  const keywordSet = new Set([
-    "def", "class", "import", "from", "return", "if", "elif", "else",
-    "while", "for", "in", "not", "and", "or", "is", "None", "True",
-    "False", "try", "except", "raise", "with", "as", "yield", "break",
-    "continue", "pass", "global", "lambda", "async", "await",
-  ]);
-
-  const parts = line.split(
-    /(\b(?:def|class|import|from|return|if|elif|else|while|for|in|not|and|or|is|None|True|False|try|except|raise|with|as|yield|break|continue|pass|global|lambda|async|await|self)\b|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|f"(?:[^"\\]|\\.)*"|f'(?:[^'\\]|\\.)*'|#.*$|\b\d+(?:\.\d+)?\b)/
+  const keywordSet = new Set(
+    language === "ts"
+      ? [
+          "function", "class", "import", "from", "return", "if", "else",
+          "while", "for", "in", "of", "true", "false", "try", "catch",
+          "throw", "const", "let", "var", "async", "await", "export",
+          "new", "null", "undefined", "type", "interface",
+        ]
+      : [
+          "def", "class", "import", "from", "return", "if", "elif", "else",
+          "while", "for", "in", "not", "and", "or", "is", "None", "True",
+          "False", "try", "except", "raise", "with", "as", "yield", "break",
+          "continue", "pass", "global", "lambda", "async", "await",
+        ]
   );
+
+  const keywordPattern =
+    language === "ts"
+      ? /\b(?:function|class|import|from|return|if|else|while|for|in|of|true|false|try|catch|throw|const|let|var|async|await|export|new|null|undefined|type|interface|this)\b|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`|\/\/.*$|\b\d+(?:\.\d+)?\b/g
+      : /\b(?:def|class|import|from|return|if|elif|else|while|for|in|not|and|or|is|None|True|False|try|except|raise|with|as|yield|break|continue|pass|global|lambda|async|await|self)\b|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|f"(?:[^"\\]|\\.)*"|f'(?:[^'\\]|\\.)*'|#.*$|\b\d+(?:\.\d+)?\b/g;
+
+  const parts = line.split(new RegExp(`(${keywordPattern.source})`));
 
   return parts.map((part, idx) => {
     if (!part) return null;
     if (keywordSet.has(part)) {
       return <span key={idx} className="text-blue-400 font-medium">{part}</span>;
     }
-    if (part === "self") {
+    if (part === "self" || part === "this") {
       return <span key={idx} className="text-purple-400">{part}</span>;
     }
-    if (part.startsWith("#")) {
+    if (part.startsWith("#") || part.startsWith("//")) {
       return <span key={idx} className="text-zinc-400 italic">{part}</span>;
     }
     if (
       (part.startsWith('"') && part.endsWith('"')) ||
       (part.startsWith("'") && part.endsWith("'")) ||
       (part.startsWith('f"') && part.endsWith('"')) ||
-      (part.startsWith("f'") && part.endsWith("'"))
+      (part.startsWith("f'") && part.endsWith("'")) ||
+      (part.startsWith("`") && part.endsWith("`"))
     ) {
       return <span key={idx} className="text-emerald-500">{part}</span>;
     }
@@ -70,6 +93,7 @@ function highlightLine(line: string): React.ReactNode[] {
 
 export function SourceViewer({ source, filename }: SourceViewerProps) {
   const lines = useMemo(() => source.split("\n"), [source]);
+  const language = useMemo(() => getLanguageFromFilename(filename), [filename]);
 
   return (
     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700">
@@ -90,7 +114,7 @@ export function SourceViewer({ source, filename }: SourceViewerProps) {
                   {i + 1}
                 </span>
                 <span className="text-zinc-200">
-                  {highlightLine(line)}
+                  {highlightLine(line, language)}
                 </span>
               </div>
             ))}

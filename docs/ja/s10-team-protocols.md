@@ -44,6 +44,8 @@ Trackers:
 
 1. リーダーがrequest_idを生成し、インボックス経由でシャットダウンを開始する。
 
+<Lang when="python">
+
 ```python
 shutdown_requests = {}
 
@@ -55,7 +57,23 @@ def handle_shutdown_request(teammate: str) -> str:
     return f"Shutdown request {req_id} sent (status: pending)"
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+function handleShutdownRequest(teammate: string) {
+  const requestId = randomUUID().slice(0, 8);
+  shutdownRequests[requestId] = { target: teammate, status: "pending" };
+  BUS.send("lead", teammate, "Please shut down gracefully.", "shutdown_request", { request_id: requestId });
+}
+```
+
+</Lang>
+
 2. チームメイトがリクエストを受信し、承認または拒否で応答する。
+
+<Lang when="python">
 
 ```python
 if tool_name == "shutdown_response":
@@ -67,7 +85,25 @@ if tool_name == "shutdown_response":
              {"request_id": req_id, "approve": approve})
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+if (toolName === "shutdown_response") {
+  shutdownRequests[requestId].status = input.approve ? "approved" : "rejected";
+  BUS.send(sender, "lead", String(input.reason ?? ""), "shutdown_response", {
+    request_id: requestId,
+    approve: Boolean(input.approve),
+  });
+}
+```
+
+</Lang>
+
 3. プラン承認も同一パターン。チームメイトがプランを提出(request_idを生成)、リーダーがレビュー(同じrequest_idを参照)。
+
+<Lang when="python">
 
 ```python
 plan_requests = {}
@@ -79,6 +115,23 @@ def handle_plan_review(request_id, approve, feedback=""):
              "plan_approval_response",
              {"request_id": request_id, "approve": approve})
 ```
+
+</Lang>
+
+<Lang when="ts">
+
+```ts
+function handlePlanReview(requestId: string, approve: boolean, feedback = "") {
+  const request = planRequests[requestId];
+  request.status = approve ? "approved" : "rejected";
+  BUS.send("lead", request.from, feedback, "plan_approval_response", {
+    request_id: requestId,
+    approve,
+  });
+}
+```
+
+</Lang>
 
 1つのFSM、2つの応用。同じ`pending -> approved | rejected`状態機械が、あらゆるリクエスト-レスポンスプロトコルに適用できる。
 
@@ -96,11 +149,29 @@ def handle_plan_review(request_id, approve, feedback=""):
 
 ```sh
 cd learn-claude-code
+```
+
+<Lang when="python">
+
+```sh
 python agents/s10_team_protocols.py
 ```
+
+</Lang>
+
+<Lang when="ts">
+
+```sh
+cd agents-ts
+npm install
+npm run s10
+```
+
+</Lang>
 
 1. `Spawn alice as a coder. Then request her shutdown.`
 2. `List teammates to see alice's status after shutdown approval`
 3. `Spawn bob with a risky refactoring task. Review and reject his plan.`
 4. `Spawn charlie, have him submit a plan, then approve it.`
 5. `/team`と入力してステータスを監視する
+

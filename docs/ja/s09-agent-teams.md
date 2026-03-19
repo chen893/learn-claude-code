@@ -39,6 +39,8 @@ Communication:
 
 1. TeammateManagerがconfig.jsonでチーム名簿を管理する。
 
+<Lang when="python">
+
 ```python
 class TeammateManager:
     def __init__(self, team_dir: Path):
@@ -49,7 +51,22 @@ class TeammateManager:
         self.threads = {}
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+class TeammateManager {
+  private configPath = resolve(teamDir, "config.json");
+  private config: TeamConfig = this.loadConfig();
+}
+```
+
+</Lang>
+
 2. `spawn()`がチームメイトを作成し、そのエージェントループをスレッドで開始する。
+
+<Lang when="python">
 
 ```python
 def spawn(self, name: str, role: str, prompt: str) -> str:
@@ -63,7 +80,24 @@ def spawn(self, name: str, role: str, prompt: str) -> str:
     return f"Spawned teammate '{name}' (role: {role})"
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+spawn(name: string, role: string, prompt: string) {
+  this.config.members.push({ name, role, status: "working" });
+  this.saveConfig();
+  void this.teammateLoop(name, role, prompt);
+  return `Spawned '${name}' (role: ${role})`;
+}
+```
+
+</Lang>
+
 3. MessageBus: 追記専用のJSONLインボックス。`send()`がJSON行を追記し、`read_inbox()`がすべて読み取ってドレインする。
+
+<Lang when="python">
 
 ```python
 class MessageBus:
@@ -83,7 +117,29 @@ class MessageBus:
         return json.dumps(msgs, indent=2)
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+class MessageBus {
+  send(sender: string, to: string, content: string) {
+    appendFileSync(resolve(this.inboxDir, `${to}.jsonl`), `${JSON.stringify({ from: sender, content })}\n`);
+  }
+
+  readInbox(name: string) {
+    const lines = readFileSync(resolve(this.inboxDir, `${name}.jsonl`), "utf8").split(/\r?\n/).filter(Boolean);
+    writeFileSync(resolve(this.inboxDir, `${name}.jsonl`), "", "utf8");
+    return lines.map((line) => JSON.parse(line));
+  }
+}
+```
+
+</Lang>
+
 4. 各チームメイトは各LLM呼び出しの前にインボックスを確認し、受信メッセージをコンテキストに注入する。
+
+<Lang when="python">
 
 ```python
 def _teammate_loop(self, name, role, prompt):
@@ -102,6 +158,19 @@ def _teammate_loop(self, name, role, prompt):
     self._find_member(name)["status"] = "idle"
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+for (const message of BUS.readInbox(name)) {
+  messages.push({ role: "user", content: JSON.stringify(message) });
+}
+const response = await client.messages.create(...);
+```
+
+</Lang>
+
 ## s08からの変更点
 
 | Component      | Before (s08)     | After (s09)                |
@@ -117,11 +186,29 @@ def _teammate_loop(self, name, role, prompt):
 
 ```sh
 cd learn-claude-code
+```
+
+<Lang when="python">
+
+```sh
 python agents/s09_agent_teams.py
 ```
+
+</Lang>
+
+<Lang when="ts">
+
+```sh
+cd agents-ts
+npm install
+npm run s09
+```
+
+</Lang>
 
 1. `Spawn alice (coder) and bob (tester). Have alice send bob a message.`
 2. `Broadcast "status update: phase 1 complete" to all teammates`
 3. `Check the lead inbox for any messages`
 4. `/team`と入力してステータス付きのチーム名簿を確認する
 5. `/inbox`と入力してリーダーのインボックスを手動確認する
+

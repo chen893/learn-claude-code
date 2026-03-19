@@ -12,7 +12,7 @@ On multi-step tasks, the model loses track. It repeats work, skips steps, or wan
 
 ## Solution
 
-```
+```text
 +--------+      +-------+      +---------+
 |  User  | ---> |  LLM  | ---> | Tools   |
 | prompt |      |       |      | + todo  |
@@ -36,6 +36,8 @@ On multi-step tasks, the model loses track. It repeats work, skips steps, or wan
 
 1. TodoManager stores items with statuses. Only one item can be `in_progress` at a time.
 
+<Lang when="python">
+
 ```python
 class TodoManager:
     def update(self, items: list) -> str:
@@ -52,7 +54,45 @@ class TodoManager:
         return self.render()
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+class TodoManager {
+  private items: TodoItem[] = [];
+
+  update(items: unknown): string {
+    if (!Array.isArray(items)) {
+      throw new Error("items must be an array");
+    }
+
+    let inProgressCount = 0;
+    const validated = items.map((item, index) => {
+      const record = (item ?? {}) as Record<string, unknown>;
+      const text = String(record.text ?? "").trim();
+      const status = String(record.status ?? "pending").toLowerCase() as TodoStatus;
+      const id = String(record.id ?? index + 1);
+
+      if (status === "in_progress") inProgressCount += 1;
+      return { id, text, status };
+    });
+
+    if (inProgressCount > 1) {
+      throw new Error("Only one task can be in_progress at a time");
+    }
+
+    this.items = validated;
+    return this.render();
+  }
+}
+```
+
+</Lang>
+
 2. The `todo` tool goes into the dispatch map like any other tool.
+
+<Lang when="python">
 
 ```python
 TOOL_HANDLERS = {
@@ -61,7 +101,22 @@ TOOL_HANDLERS = {
 }
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+const TOOL_HANDLERS = {
+  // ...base tools...
+  todo: (input) => TODO.update(input.items),
+};
+```
+
+</Lang>
+
 3. A nag reminder injects a nudge if the model goes 3+ rounds without calling `todo`.
+
+<Lang when="python">
 
 ```python
 if rounds_since_todo >= 3 and messages:
@@ -72,6 +127,21 @@ if rounds_since_todo >= 3 and messages:
             "text": "<reminder>Update your todos.</reminder>",
         })
 ```
+
+</Lang>
+
+<Lang when="ts">
+
+```ts
+if (roundsSinceTodo >= 3) {
+  results.unshift({
+    type: "text",
+    text: "<reminder>Update your todos.</reminder>",
+  });
+}
+```
+
+</Lang>
 
 The "one in_progress at a time" constraint forces sequential focus. The nag reminder creates accountability.
 
@@ -88,9 +158,30 @@ The "one in_progress at a time" constraint forces sequential focus. The nag remi
 
 ```sh
 cd learn-claude-code
+```
+
+<Lang when="python">
+
+```sh
 python agents/s03_todo_write.py
 ```
 
 1. `Refactor the file hello.py: add type hints, docstrings, and a main guard`
 2. `Create a Python package with __init__.py, utils.py, and tests/test_utils.py`
 3. `Review all Python files and fix any style issues`
+
+</Lang>
+
+<Lang when="ts">
+
+```sh
+cd agents-ts
+npm install
+npm run s03
+```
+
+1. `Refactor the file hello.ts: add type annotations, comments, and a small CLI entry`
+2. `Create a TypeScript package with index.ts, utils.ts, and tests/utils.test.ts`
+3. `Review all TypeScript files and fix any style issues`
+
+</Lang>

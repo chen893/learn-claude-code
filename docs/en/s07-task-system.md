@@ -50,6 +50,8 @@ This task graph becomes the coordination backbone for everything after s07: back
 
 1. **TaskManager**: one JSON file per task, CRUD with dependency graph.
 
+<Lang when="python">
+
 ```python
 class TaskManager:
     def __init__(self, tasks_dir: Path):
@@ -66,7 +68,34 @@ class TaskManager:
         return json.dumps(task, indent=2)
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+class TaskManager {
+  create(subject: string, description = "") {
+    const task = {
+      id: this.nextId,
+      subject,
+      description,
+      status: "pending",
+      blockedBy: [],
+      blocks: [],
+      owner: "",
+    };
+    this.save(task);
+    this.nextId += 1;
+    return JSON.stringify(task, null, 2);
+  }
+}
+```
+
+</Lang>
+
 2. **Dependency resolution**: completing a task clears its ID from every other task's `blockedBy` list, automatically unblocking dependents.
+
+<Lang when="python">
 
 ```python
 def _clear_dependency(self, completed_id):
@@ -77,7 +106,26 @@ def _clear_dependency(self, completed_id):
             self._save(task)
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+private clearDependency(completedId: number) {
+  for (const task of this.loadAll()) {
+    if (task.blockedBy.includes(completedId)) {
+      task.blockedBy = task.blockedBy.filter((id) => id !== completedId);
+      this.save(task);
+    }
+  }
+}
+```
+
+</Lang>
+
 3. **Status + dependency wiring**: `update` handles transitions and dependency edges.
+
+<Lang when="python">
 
 ```python
 def update(self, task_id, status=None,
@@ -90,7 +138,26 @@ def update(self, task_id, status=None,
     self._save(task)
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+update(taskId: number, status?: string, addBlockedBy?: number[], addBlocks?: number[]) {
+  const task = this.load(taskId);
+  if (status === "completed") {
+    task.status = "completed";
+    this.clearDependency(taskId);
+  }
+  this.save(task);
+}
+```
+
+</Lang>
+
 4. Four task tools go into the dispatch map.
+
+<Lang when="python">
 
 ```python
 TOOL_HANDLERS = {
@@ -101,6 +168,21 @@ TOOL_HANDLERS = {
     "task_get":    lambda **kw: TASKS.get(kw["task_id"]),
 }
 ```
+
+</Lang>
+
+<Lang when="ts">
+
+```ts
+const TOOL_HANDLERS = {
+  task_create: (input) => TASKS.create(String(input.subject ?? "")),
+  task_update: (input) => TASKS.update(Number(input.task_id ?? 0), input.status as string),
+  task_list: () => TASKS.listAll(),
+  task_get: (input) => TASKS.get(Number(input.task_id ?? 0)),
+};
+```
+
+</Lang>
 
 From s07 onward, the task graph is the default for multi-step work. s03's Todo remains for quick single-session checklists.
 
@@ -118,10 +200,28 @@ From s07 onward, the task graph is the default for multi-step work. s03's Todo r
 
 ```sh
 cd learn-claude-code
+```
+
+<Lang when="python">
+
+```sh
 python agents/s07_task_system.py
 ```
+
+</Lang>
+
+<Lang when="ts">
+
+```sh
+cd agents-ts
+npm install
+npm run s07
+```
+
+</Lang>
 
 1. `Create 3 tasks: "Setup project", "Write code", "Write tests". Make them depend on each other in order.`
 2. `List all tasks and show the dependency graph`
 3. `Complete task 1 and then list tasks to see task 2 unblocked`
 4. `Create a task board for refactoring: parse -> transform -> emit -> test, where transform and emit can run in parallel after parse`
+

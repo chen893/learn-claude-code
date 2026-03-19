@@ -3,14 +3,12 @@
 import Link from "next/link";
 import { useTranslations, useLocale } from "@/lib/i18n";
 import { LAYERS, VERSION_META } from "@/lib/constants";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { LayerBadge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
-import type { VersionIndex } from "@/types/agent-data";
-import versionData from "@/data/generated/versions.json";
-
-const data = versionData as VersionIndex;
+import { DEFAULT_LANGUAGE, getVersion, getVersionRoute } from "@/lib/learning";
+import { usePreferredLanguage } from "@/hooks/usePreferredLanguage";
 
 const LAYER_BORDER_CLASSES: Record<string, string> = {
   tools: "border-l-blue-500",
@@ -31,6 +29,7 @@ const LAYER_HEADER_BG: Record<string, string> = {
 export default function LayersPage() {
   const t = useTranslations("layers");
   const locale = useLocale();
+  const language = usePreferredLanguage() || DEFAULT_LANGUAGE;
 
   return (
     <div className="py-4">
@@ -41,11 +40,13 @@ export default function LayersPage() {
 
       <div className="space-y-6">
         {LAYERS.map((layer, index) => {
-          const versionInfos = layer.versions.map((vId) => {
-            const info = data.versions.find((v) => v.id === vId);
-            const meta = VERSION_META[vId];
-            return { id: vId, info, meta };
-          });
+          const versionInfos = layer.versions
+            .map((versionId) => ({
+              id: versionId,
+              info: getVersion(language, versionId),
+              meta: VERSION_META[versionId],
+            }))
+            .filter((item) => item.info);
 
           return (
             <div
@@ -56,13 +57,11 @@ export default function LayersPage() {
                 LAYER_BORDER_CLASSES[layer.id]
               )}
             >
-              {/* Layer header */}
               <div className="flex items-center gap-3 px-6 py-4">
                 <div className={cn("h-3 w-3 rounded-full", LAYER_HEADER_BG[layer.id])} />
                 <div>
                   <h2 className="text-xl font-bold">
-                    <span className="text-zinc-400 dark:text-zinc-600">L{index + 1}</span>
-                    {" "}
+                    <span className="text-zinc-400 dark:text-zinc-600">L{index + 1}</span>{" "}
                     {layer.label}
                   </h2>
                   <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
@@ -71,13 +70,12 @@ export default function LayersPage() {
                 </div>
               </div>
 
-              {/* Version cards within this layer */}
               <div className="border-t border-zinc-200 bg-zinc-50/50 px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900/50">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {versionInfos.map(({ id, info, meta }) => (
                     <Link
                       key={id}
-                      href={`/${locale}/${id}`}
+                      href={getVersionRoute(locale, language, id)}
                       className="group"
                     >
                       <Card className="transition-shadow hover:shadow-md">
@@ -106,7 +104,7 @@ export default function LayersPage() {
                           <span>{info?.tools.length ?? "?"} tools</span>
                         </div>
                         {meta?.keyInsight && (
-                          <p className="mt-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 line-clamp-2">
+                          <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
                             {meta.keyInsight}
                           </p>
                         )}
@@ -116,7 +114,6 @@ export default function LayersPage() {
                 </div>
               </div>
 
-              {/* Composition indicator */}
               {index < LAYERS.length - 1 && (
                 <div className="flex items-center justify-center py-1 text-zinc-300 dark:text-zinc-700">
                   <svg width="20" height="12" viewBox="0 0 20 12" fill="none" className="text-current">

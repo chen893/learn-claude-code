@@ -241,6 +241,10 @@ cp .env.example .env   # 编辑 .env 填入你的 ANTHROPIC_API_KEY
 python agents/s01_agent_loop.py       # 从这里开始
 python agents/s12_worktree_task_isolation.py  # 完整递进终点
 python agents/s_full.py               # 总纲: 全部机制合一
+
+cd agents-ts && npm install
+npm run s01                           # TypeScript 版本入口
+npm run s12                           # TypeScript 完整递进终点
 ```
 
 ### Web 平台
@@ -291,6 +295,7 @@ s08  后台任务                [6]     s10  团队协议               [12]
 learn-claude-code/
 |
 |-- agents/                        # Python 参考实现 (s01-s12 + s_full 总纲)
+|-- agents-ts/                     # TypeScript 可运行实现 (s01-s12)
 |-- docs/{en,zh,ja}/               # 心智模型优先的文档 (3 种语言)
 |-- web/                           # 交互式学习平台 (Next.js)
 |-- skills/                        # s05 的 Skill 文件

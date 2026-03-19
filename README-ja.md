@@ -241,6 +241,10 @@ cp .env.example .env   # .env を編集して ANTHROPIC_API_KEY を入力
 python agents/s01_agent_loop.py       # ここから開始
 python agents/s12_worktree_task_isolation.py  # 全セッションの到達点
 python agents/s_full.py               # 総括: 全メカニズム統合
+
+cd agents-ts && npm install
+npm run s01                           # TypeScript 版の開始地点
+npm run s12                           # TypeScript 版の到達点
 ```
 
 ### Web プラットフォーム
@@ -291,6 +295,7 @@ s08  バックグラウンドタスク   [6]     s10  チームプロトコル  
 learn-claude-code/
 |
 |-- agents/                        # Python リファレンス実装 (s01-s12 + s_full 総括)
+|-- agents-ts/                     # TypeScript 実行版 (s01-s12)
 |-- docs/{en,zh,ja}/               # メンタルモデル優先のドキュメント (3言語)
 |-- web/                           # インタラクティブ学習プラットフォーム (Next.js)
 |-- skills/                        # s05 の Skill ファイル

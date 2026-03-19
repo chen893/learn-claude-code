@@ -2,7 +2,8 @@
 
 import { useMemo } from "react";
 import { useLocale } from "@/lib/i18n";
-import docsData from "@/data/generated/docs.json";
+import { resolveLanguageBlocks } from "@/lib/doc-conditions";
+import { getDocs } from "@/lib/learning";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
@@ -12,6 +13,7 @@ import rehypeHighlight from "rehype-highlight";
 import rehypeStringify from "rehype-stringify";
 
 interface DocRendererProps {
+  language: string;
   version: string;
 }
 
@@ -58,27 +60,20 @@ function postProcessHtml(html: string): string {
   return html;
 }
 
-export function DocRenderer({ version }: DocRendererProps) {
+export function DocRenderer({ language, version }: DocRendererProps) {
   const locale = useLocale();
 
   const doc = useMemo(() => {
-    const match = docsData.find(
-      (d: { version: string; locale: string }) =>
-        d.version === version && d.locale === locale
-    );
-    if (match) return match;
-    return docsData.find(
-      (d: { version: string; locale: string }) =>
-        d.version === version && d.locale === "en"
-    );
-  }, [version, locale]);
+    return getDocs(language, version, locale);
+  }, [language, version, locale]);
 
   if (!doc) return null;
 
   const html = useMemo(() => {
-    const raw = renderMarkdown(doc.content);
+    const resolved = resolveLanguageBlocks(doc.content, language);
+    const raw = renderMarkdown(resolved);
     return postProcessHtml(raw);
-  }, [doc.content]);
+  }, [doc.content, language]);
 
   return (
     <div className="py-4">

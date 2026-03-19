@@ -12,8 +12,10 @@ import { Tabs } from "@/components/ui/tabs";
 import { useTranslations } from "@/lib/i18n";
 
 interface VersionDetailClientProps {
+  language: string;
   version: string;
   diff: {
+    language: string;
     from: string;
     to: string;
     newClasses: string[];
@@ -26,6 +28,7 @@ interface VersionDetailClientProps {
 }
 
 export function VersionDetailClient({
+  language,
   version,
   diff,
   source,
@@ -42,33 +45,23 @@ export function VersionDetailClient({
 
   return (
     <div className="space-y-6">
-      {/* Hero Visualization */}
       <SessionVisualization version={version} />
 
-      {/* Tabbed content */}
       <Tabs tabs={tabs} defaultTab="learn">
         {(activeTab) => (
           <>
-            {activeTab === "learn" && <DocRenderer version={version} />}
-            {activeTab === "simulate" && (
-              <AgentLoopSimulator version={version} />
-            )}
-            {activeTab === "code" && (
-              <SourceViewer source={source} filename={filename} />
-            )}
+            {activeTab === "learn" && <DocRenderer language={language} version={version} />}
+            {activeTab === "simulate" && <AgentLoopSimulator version={version} />}
+            {activeTab === "code" && <SourceViewer source={source} filename={filename} />}
             {activeTab === "deep-dive" && (
               <div className="space-y-8">
                 <section>
-                  <h2 className="mb-4 text-xl font-semibold">
-                    {t("execution_flow")}
-                  </h2>
+                  <h2 className="mb-4 text-xl font-semibold">{t("execution_flow")}</h2>
                   <ExecutionFlow version={version} />
                 </section>
                 <section>
-                  <h2 className="mb-4 text-xl font-semibold">
-                    {t("architecture")}
-                  </h2>
-                  <ArchDiagram version={version} />
+                  <h2 className="mb-4 text-xl font-semibold">{t("architecture")}</h2>
+                  <ArchDiagram language={language} version={version} />
                 </section>
                 {diff && <WhatsNew diff={diff} />}
                 <DesignDecisions version={version} />

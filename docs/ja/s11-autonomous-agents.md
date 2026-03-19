@@ -49,6 +49,8 @@ Identity re-injection after compression:
 
 1. チームメイトのループはWORKとIDLEの2フェーズ。LLMがツール呼び出しを止めた時(または`idle`ツールを呼んだ時)、IDLEフェーズに入る。
 
+<Lang when="python">
+
 ```python
 def _loop(self, name, role, prompt):
     while True:
@@ -71,7 +73,26 @@ def _loop(self, name, role, prompt):
         self._set_status(name, "working")
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+async loop(name: string, role: string, prompt: string) {
+  while (true) {
+    // WORK phase
+    if (idleRequested) break;
+    // IDLE phase
+    if (!resume) return;
+  }
+}
+```
+
+</Lang>
+
 2. IDLEフェーズがインボックスとタスクボードをポーリングする。
+
+<Lang when="python">
 
 ```python
 def _idle_poll(self, name, messages):
@@ -92,7 +113,25 @@ def _idle_poll(self, name, messages):
     return False  # timeout -> shutdown
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+while (Date.now() - start < IDLE_TIMEOUT) {
+  await sleep(POLL_INTERVAL);
+  const inbox = BUS.readInbox(name);
+  const unclaimed = scanUnclaimedTasks();
+  if (inbox.length || unclaimed.length) return true;
+}
+return false;
+```
+
+</Lang>
+
 3. タスクボードスキャン: pendingかつ未割り当てかつブロックされていないタスクを探す。
+
+<Lang when="python">
 
 ```python
 def scan_unclaimed_tasks() -> list:
@@ -106,7 +145,23 @@ def scan_unclaimed_tasks() -> list:
     return unclaimed
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+function scanUnclaimedTasks() {
+  return loadTasks().filter((task) =>
+    task.status === "pending" && !task.owner && !(task.blockedBy?.length),
+  );
+}
+```
+
+</Lang>
+
 4. アイデンティティ再注入: コンテキストが短すぎる(圧縮が起きた)場合にアイデンティティブロックを挿入する。
+
+<Lang when="python">
 
 ```python
 if len(messages) <= 3:
@@ -116,6 +171,19 @@ if len(messages) <= 3:
     messages.insert(1, {"role": "assistant",
         "content": f"I am {name}. Continuing."})
 ```
+
+</Lang>
+
+<Lang when="ts">
+
+```ts
+if (messages.length <= 3) {
+  messages.unshift({ role: "assistant", content: `I am ${name}. Continuing.` });
+  messages.unshift(makeIdentityBlock(name, role, teamName));
+}
+```
+
+</Lang>
 
 ## s10からの変更点
 
@@ -132,11 +200,29 @@ if len(messages) <= 3:
 
 ```sh
 cd learn-claude-code
+```
+
+<Lang when="python">
+
+```sh
 python agents/s11_autonomous_agents.py
 ```
+
+</Lang>
+
+<Lang when="ts">
+
+```sh
+cd agents-ts
+npm install
+npm run s11
+```
+
+</Lang>
 
 1. `Create 3 tasks on the board, then spawn alice and bob. Watch them auto-claim.`
 2. `Spawn a coder teammate and let it find work from the task board itself`
 3. `Create tasks with dependencies. Watch teammates respect the blocked order.`
 4. `/tasks`と入力してオーナー付きのタスクボードを確認する
 5. `/team`と入力して誰が作業中でアイドルかを監視する
+

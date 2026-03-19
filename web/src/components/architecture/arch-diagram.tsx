@@ -2,8 +2,7 @@
 
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { LAYERS } from "@/lib/constants";
-import versionsData from "@/data/generated/versions.json";
+import { DEFAULT_LANGUAGE, getAllVersions, getVersion, getVersionDiff } from "@/lib/learning";
 
 const CLASS_DESCRIPTIONS: Record<string, string> = {
   TodoManager: "Visible task planning with constraints",
@@ -19,20 +18,15 @@ const CLASS_DESCRIPTIONS: Record<string, string> = {
 };
 
 interface ArchDiagramProps {
+  language?: string;
   version: string;
 }
 
-function getLayerColor(versionId: string): string {
-  const layer = LAYERS.find((l) => (l.versions as readonly string[]).includes(versionId));
-  return layer?.color ?? "#71717a";
-}
-
-function getLayerColorClasses(versionId: string): {
+function getLayerColorClasses(language: string, versionId: string): {
   border: string;
   bg: string;
 } {
-  const v =
-    versionsData.versions.find((v) => v.id === versionId) as { layer?: string } | undefined;
+  const v = getVersion(language, versionId) as { layer?: string } | undefined;
   const layer = v?.layer;
   switch (layer) {
     case "tools":
@@ -69,9 +63,10 @@ function getLayerColorClasses(versionId: string): {
 }
 
 function collectClassesUpTo(
+  language: string,
   targetId: string
 ): { name: string; introducedIn: string }[] {
-  const { versions, diffs } = versionsData;
+  const versions = getAllVersions(language);
   const order = versions.map((v) => v.id);
   const targetIdx = order.indexOf(targetId);
   if (targetIdx < 0) return [];
@@ -93,19 +88,19 @@ function collectClassesUpTo(
   return result;
 }
 
-function getNewClassNames(version: string): Set<string> {
-  const diff = versionsData.diffs.find((d) => d.to === version);
+function getNewClassNames(language: string, version: string): Set<string> {
+  const diff = getVersionDiff(language, version);
   if (!diff) {
-    const v = versionsData.versions.find((ver) => ver.id === version);
+    const v = getVersion(language, version);
     return new Set(v?.classes?.map((c) => c.name) ?? []);
   }
   return new Set(diff.newClasses ?? []);
 }
 
-export function ArchDiagram({ version }: ArchDiagramProps) {
-  const allClasses = collectClassesUpTo(version);
-  const newClassNames = getNewClassNames(version);
-  const versionData = versionsData.versions.find((v) => v.id === version);
+export function ArchDiagram({ language = DEFAULT_LANGUAGE, version }: ArchDiagramProps) {
+  const allClasses = collectClassesUpTo(language, version);
+  const newClassNames = getNewClassNames(language, version);
+  const versionData = getVersion(language, version);
   const tools = versionData?.tools ?? [];
 
   const reversed = [...allClasses].reverse();
@@ -114,7 +109,7 @@ export function ArchDiagram({ version }: ArchDiagramProps) {
     <div className="space-y-3">
       {reversed.map((cls, i) => {
         const isNew = newClassNames.has(cls.name);
-        const colorClasses = getLayerColorClasses(cls.introducedIn);
+        const colorClasses = getLayerColorClasses(language, cls.introducedIn);
 
         return (
           <div key={cls.name}>

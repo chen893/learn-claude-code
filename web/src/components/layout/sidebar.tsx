@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LAYERS, VERSION_META } from "@/lib/constants";
+import { DEFAULT_LANGUAGE, getVersionRoute } from "@/lib/learning";
+import { usePreferredLanguage } from "@/hooks/usePreferredLanguage";
 import { useTranslations } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +19,11 @@ const LAYER_DOT_BG: Record<string, string> = {
 export function Sidebar() {
   const pathname = usePathname();
   const locale = pathname.split("/")[1] || "en";
+  const preferredLanguage = usePreferredLanguage();
+  const pathLanguage = pathname.split("/")[2];
+  const language = pathLanguage === "python" || pathLanguage === "ts"
+    ? pathLanguage
+    : (preferredLanguage || DEFAULT_LANGUAGE);
   const t = useTranslations("sessions");
   const tLayer = useTranslations("layer_labels");
 
@@ -34,7 +41,7 @@ export function Sidebar() {
             <ul className="space-y-0.5">
               {layer.versions.map((vId) => {
                 const meta = VERSION_META[vId];
-                const href = `/${locale}/${vId}`;
+                const href = getVersionRoute(locale, language, vId);
                 const isActive =
                   pathname === href ||
                   pathname === `${href}/` ||

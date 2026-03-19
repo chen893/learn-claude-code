@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useTranslations, useLocale } from "@/lib/i18n";
-import { Github, Menu, X, Sun, Moon } from "lucide-react";
+import { Github, Menu, Moon, Sun, X } from "lucide-react";
 import { useState } from "react";
+import { LanguageToggle } from "@/components/layout/language-toggle";
+import { usePreferredLanguage, writePreferredLanguage } from "@/hooks/usePreferredLanguage";
+import { useLocale, useTranslations } from "@/lib/i18n";
+import { getPathnameForLanguage } from "@/lib/learning";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -23,6 +26,7 @@ export function Header() {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const locale = useLocale();
+  const preferredLanguage = usePreferredLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dark, setDark] = useState(() => {
     if (typeof window !== "undefined") {
@@ -45,6 +49,14 @@ export function Header() {
     window.location.href = newPath;
   }
 
+  function switchLanguage(nextLanguage: string) {
+    writePreferredLanguage(nextLanguage);
+    const nextPath = getPathnameForLanguage(pathname, nextLanguage);
+    if (nextPath !== pathname) {
+      window.location.href = nextPath;
+    }
+  }
+
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--color-border)] bg-[var(--color-bg)]/80 backdrop-blur-sm">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -52,7 +64,6 @@ export function Header() {
           Learn Claude Code
         </Link>
 
-        {/* Desktop nav */}
         <nav className="hidden items-center gap-6 md:flex">
           {NAV_ITEMS.map((item) => (
             <Link
@@ -69,20 +80,28 @@ export function Header() {
             </Link>
           ))}
 
-          {/* Locale switcher */}
+          <LanguageToggle
+            value={preferredLanguage}
+            options={[
+              { value: "python", label: "Python" },
+              { value: "ts", label: "TypeScript" },
+            ]}
+            onChange={switchLanguage}
+          />
+
           <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] p-0.5">
-            {LOCALES.map((l) => (
+            {LOCALES.map((item) => (
               <button
-                key={l.code}
-                onClick={() => switchLocale(l.code)}
+                key={item.code}
+                onClick={() => switchLocale(item.code)}
                 className={cn(
                   "rounded-md px-2 py-1 text-xs font-medium transition-colors",
-                  locale === l.code
+                  locale === item.code
                     ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
                     : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400"
                 )}
               >
-                {l.label}
+                {item.label}
               </button>
             ))}
           </div>
@@ -104,7 +123,6 @@ export function Header() {
           </a>
         </nav>
 
-        {/* Mobile hamburger */}
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
           className="flex min-h-[44px] min-w-[44px] items-center justify-center md:hidden"
@@ -113,7 +131,6 @@ export function Header() {
         </button>
       </div>
 
-      {/* Mobile menu */}
       {mobileOpen && (
         <div className="border-t border-[var(--color-border)] bg-[var(--color-bg)] p-4 md:hidden">
           {NAV_ITEMS.map((item) => (
@@ -126,23 +143,36 @@ export function Header() {
               {t(item.key)}
             </Link>
           ))}
+
+          <div className="mt-3 border-t border-[var(--color-border)] pt-3">
+            <LanguageToggle
+              value={preferredLanguage}
+              options={[
+                { value: "python", label: "Python" },
+                { value: "ts", label: "TypeScript" },
+              ]}
+              onChange={switchLanguage}
+            />
+          </div>
+
           <div className="mt-3 flex items-center justify-between border-t border-[var(--color-border)] pt-3">
             <div className="flex gap-2">
-              {LOCALES.map((l) => (
+              {LOCALES.map((item) => (
                 <button
-                  key={l.code}
-                  onClick={() => switchLocale(l.code)}
+                  key={item.code}
+                  onClick={() => switchLocale(item.code)}
                   className={cn(
                     "min-h-[44px] min-w-[44px] rounded-md px-3 text-xs font-medium",
-                    locale === l.code
+                    locale === item.code
                       ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
                       : "border border-[var(--color-border)]"
                   )}
                 >
-                  {l.label}
+                  {item.label}
                 </button>
               ))}
             </div>
+
             <div className="flex items-center gap-2">
               <button
                 onClick={toggleDark}

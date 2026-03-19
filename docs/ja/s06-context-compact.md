@@ -46,6 +46,8 @@ continue    [Layer 2: auto_compact]
 
 1. **第1層 -- micro_compact**: 各LLM呼び出しの前に、古いツール結果をプレースホルダーに置換する。
 
+<Lang when="python">
+
 ```python
 def micro_compact(messages: list) -> list:
     tool_results = []
@@ -62,7 +64,40 @@ def micro_compact(messages: list) -> list:
     return messages
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+function microCompact(messages: Message[]): Message[] {
+  const toolResults: ToolResultBlock[] = [];
+
+  for (const message of messages) {
+    if (message.role !== "user" || !Array.isArray(message.content)) continue;
+    for (const part of message.content) {
+      if (isToolResultBlock(part)) {
+        toolResults.push(part);
+      }
+    }
+  }
+
+  if (toolResults.length <= KEEP_RECENT) {
+    return messages;
+  }
+
+  for (const result of toolResults.slice(0, -KEEP_RECENT)) {
+    result.content = `[Previous: used ${toolName}]`;
+  }
+
+  return messages;
+}
+```
+
+</Lang>
+
 2. **第2層 -- auto_compact**: トークンが閾値を超えたら、完全なトランスクリプトをディスクに保存し、LLMに要約を依頼する。
+
+<Lang when="python">
 
 ```python
 def auto_compact(messages: list) -> list:
@@ -85,9 +120,41 @@ def auto_compact(messages: list) -> list:
     ]
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+async function autoCompact(messages: Message[]): Promise<Message[]> {
+  const transcriptPath = resolve(TRANSCRIPT_DIR, `transcript_${Date.now()}.jsonl`);
+  for (const message of messages) {
+    appendFileSync(transcriptPath, `${JSON.stringify(message)}\n`, "utf8");
+  }
+
+  const response = await client.messages.create({
+    model: MODEL,
+    messages: [{
+      role: "user",
+      content: "Summarize this conversation for continuity...\n\n" +
+        JSON.stringify(messages).slice(0, 80_000),
+    }],
+    max_tokens: 2000,
+  });
+
+  return [
+    { role: "user", content: `[Conversation compressed. Transcript: ${transcriptPath}]` },
+    { role: "assistant", content: "Understood. I have the context from the summary. Continuing." },
+  ];
+}
+```
+
+</Lang>
+
 3. **第3層 -- manual compact**: `compact`ツールが同じ要約処理をオンデマンドでトリガーする。
 
 4. ループが3層すべてを統合する:
+
+<Lang when="python">
 
 ```python
 def agent_loop(messages: list):
@@ -100,6 +167,31 @@ def agent_loop(messages: list):
         if manual_compact:
             messages[:] = auto_compact(messages)       # Layer 3
 ```
+
+</Lang>
+
+<Lang when="ts">
+
+```ts
+export async function agentLoop(messages: Message[]) {
+  while (true) {
+    microCompact(messages);
+
+    if (estimateTokens(messages) > THRESHOLD) {
+      messages.splice(0, messages.length, ...(await autoCompact(messages)));
+    }
+
+    const response = await client.messages.create(...);
+    // ... tool execution ...
+
+    if (manualCompact) {
+      messages.splice(0, messages.length, ...(await autoCompact(messages)));
+    }
+  }
+}
+```
+
+</Lang>
 
 トランスクリプトがディスク上に完全な履歴を保持する。何も真に失われず、アクティブなコンテキストの外に移動されるだけ。
 
@@ -117,9 +209,31 @@ def agent_loop(messages: list):
 
 ```sh
 cd learn-claude-code
+```
+
+<Lang when="python">
+
+```sh
 python agents/s06_context_compact.py
 ```
 
 1. `Read every Python file in the agents/ directory one by one` (micro-compactが古い結果を置換するのを観察する)
 2. `Keep reading files until compression triggers automatically`
 3. `Use the compact tool to manually compress the conversation`
+
+</Lang>
+
+<Lang when="ts">
+
+```sh
+cd agents-ts
+npm install
+npm run s06
+```
+
+1. `Read every TypeScript file in the agents-ts directory one by one` (micro-compactが古い結果を置換するのを観察する)
+2. `Keep reading files until compression triggers automatically`
+3. `Use the compact tool to manually compress the conversation`
+
+</Lang>
+

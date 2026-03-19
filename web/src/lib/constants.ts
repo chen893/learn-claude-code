@@ -3,8 +3,10 @@ export const VERSION_ORDER = [
 ] as const;
 
 export const LEARNING_PATH = VERSION_ORDER;
+export const LEARNING_LANGUAGES = ["python", "ts"] as const;
 
 export type VersionId = typeof LEARNING_PATH[number];
+export type LearningLanguage = typeof LEARNING_LANGUAGES[number];
 
 export const VERSION_META: Record<string, {
   title: string;

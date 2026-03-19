@@ -12,7 +12,7 @@
 
 ## 解决方案
 
-```
+```text
 +--------+      +-------+      +---------+
 |  User  | ---> |  LLM  | ---> | Tools   |
 | prompt |      |       |      | + todo  |
@@ -36,6 +36,8 @@
 
 1. TodoManager 存储带状态的项目。同一时间只允许一个 `in_progress`。
 
+<Lang when="python">
+
 ```python
 class TodoManager:
     def update(self, items: list) -> str:
@@ -52,7 +54,45 @@ class TodoManager:
         return self.render()
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+class TodoManager {
+  private items: TodoItem[] = [];
+
+  update(items: unknown): string {
+    if (!Array.isArray(items)) {
+      throw new Error("items must be an array");
+    }
+
+    let inProgressCount = 0;
+    const validated = items.map((item, index) => {
+      const record = (item ?? {}) as Record<string, unknown>;
+      const text = String(record.text ?? "").trim();
+      const status = String(record.status ?? "pending").toLowerCase() as TodoStatus;
+      const id = String(record.id ?? index + 1);
+
+      if (status === "in_progress") inProgressCount += 1;
+      return { id, text, status };
+    });
+
+    if (inProgressCount > 1) {
+      throw new Error("Only one task can be in_progress at a time");
+    }
+
+    this.items = validated;
+    return this.render();
+  }
+}
+```
+
+</Lang>
+
 2. `todo` 工具和其他工具一样加入 dispatch map。
+
+<Lang when="python">
 
 ```python
 TOOL_HANDLERS = {
@@ -61,7 +101,22 @@ TOOL_HANDLERS = {
 }
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+const TOOL_HANDLERS = {
+  // ...base tools...
+  todo: (input) => TODO.update(input.items),
+};
+```
+
+</Lang>
+
 3. nag reminder: 模型连续 3 轮以上不调用 `todo` 时注入提醒。
+
+<Lang when="python">
 
 ```python
 if rounds_since_todo >= 3 and messages:
@@ -72,6 +127,21 @@ if rounds_since_todo >= 3 and messages:
             "text": "<reminder>Update your todos.</reminder>",
         })
 ```
+
+</Lang>
+
+<Lang when="ts">
+
+```ts
+if (roundsSinceTodo >= 3) {
+  results.unshift({
+    type: "text",
+    text: "<reminder>Update your todos.</reminder>",
+  });
+}
+```
+
+</Lang>
 
 "同时只能有一个 in_progress" 强制顺序聚焦。nag reminder 制造问责压力 -- 你不更新计划, 系统就追着你问。
 
@@ -88,6 +158,11 @@ if rounds_since_todo >= 3 and messages:
 
 ```sh
 cd learn-claude-code
+```
+
+<Lang when="python">
+
+```sh
 python agents/s03_todo_write.py
 ```
 
@@ -96,3 +171,21 @@ python agents/s03_todo_write.py
 1. `Refactor the file hello.py: add type hints, docstrings, and a main guard`
 2. `Create a Python package with __init__.py, utils.py, and tests/test_utils.py`
 3. `Review all Python files and fix any style issues`
+
+</Lang>
+
+<Lang when="ts">
+
+```sh
+cd agents-ts
+npm install
+npm run s03
+```
+
+试试这些 prompt (英文 prompt 对 LLM 效果更好, 也可以用中文):
+
+1. `Refactor the file hello.ts: add type annotations, comments, and a small CLI entry`
+2. `Create a TypeScript package with index.ts, utils.ts, and tests/utils.test.ts`
+3. `Review all TypeScript files and fix any style issues`
+
+</Lang>

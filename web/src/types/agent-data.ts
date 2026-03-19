@@ -1,4 +1,8 @@
+export type AgentLanguage = "python" | "ts";
+export type DocLanguage = AgentLanguage | "shared";
+
 export interface AgentVersion {
+  language: AgentLanguage;
   id: string;
   filename: string;
   title: string;
@@ -15,6 +19,7 @@ export interface AgentVersion {
 }
 
 export interface VersionDiff {
+  language: AgentLanguage;
   from: string;
   to: string;
   newClasses: string[];
@@ -24,6 +29,7 @@ export interface VersionDiff {
 }
 
 export interface DocContent {
+  language: DocLanguage;
   version: string;
   locale: "en" | "zh" | "ja";
   title: string;

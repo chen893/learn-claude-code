@@ -2,32 +2,29 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { useLocale } from "@/lib/i18n";
-import { VERSION_META } from "@/lib/constants";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowLeft, Box, FileCode, FunctionSquare, Wrench } from "lucide-react";
 import { LayerBadge } from "@/components/ui/badge";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { CodeDiff } from "@/components/diff/code-diff";
-import { ArrowLeft, Plus, Minus, FileCode, Wrench, Box, FunctionSquare } from "lucide-react";
-import type { AgentVersion, VersionDiff, VersionIndex } from "@/types/agent-data";
-import versionData from "@/data/generated/versions.json";
-
-const data = versionData as VersionIndex;
+import { useLocale } from "@/lib/i18n";
+import { getPrevVersionId, getVersion, getVersionDiff, getVersionMeta, getVersionRoute } from "@/lib/learning";
 
 interface DiffPageContentProps {
+  language: string;
   version: string;
 }
 
-export function DiffPageContent({ version }: DiffPageContentProps) {
+export function DiffPageContent({ language, version }: DiffPageContentProps) {
   const locale = useLocale();
-  const meta = VERSION_META[version];
+  const meta = getVersionMeta(version);
 
   const { currentVersion, prevVersion, diff } = useMemo(() => {
-    const current = data.versions.find((v) => v.id === version);
-    const prevId = meta?.prevVersion;
-    const prev = prevId ? data.versions.find((v) => v.id === prevId) : null;
-    const d = data.diffs.find((d) => d.to === version);
+    const current = getVersion(language, version);
+    const prevId = getPrevVersionId(version);
+    const prev = prevId ? getVersion(language, prevId) : null;
+    const d = getVersionDiff(language, version);
     return { currentVersion: current, prevVersion: prev, diff: d };
-  }, [version, meta]);
+  }, [language, version]);
 
   if (!meta || !currentVersion) {
     return (
@@ -44,7 +41,7 @@ export function DiffPageContent({ version }: DiffPageContentProps) {
     return (
       <div className="py-12">
         <Link
-          href={`/${locale}/${version}`}
+          href={getVersionRoute(locale, language, version)}
           className="mb-6 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
         >
           <ArrowLeft size={14} />
@@ -58,19 +55,18 @@ export function DiffPageContent({ version }: DiffPageContentProps) {
     );
   }
 
-  const prevMeta = VERSION_META[prevVersion.id];
+  const prevMeta = getVersionMeta(prevVersion.id);
 
   return (
     <div className="py-4">
       <Link
-        href={`/${locale}/${version}`}
+        href={getVersionRoute(locale, language, version)}
         className="mb-6 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
       >
         <ArrowLeft size={14} />
         Back to {meta.title}
       </Link>
 
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold">
           {prevMeta?.title || prevVersion.id} → {meta.title}
@@ -80,7 +76,6 @@ export function DiffPageContent({ version }: DiffPageContentProps) {
         </p>
       </div>
 
-      {/* Structural Diff */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader>
@@ -91,7 +86,8 @@ export function DiffPageContent({ version }: DiffPageContentProps) {
           </CardHeader>
           <CardTitle>
             <span className={diff.locDelta >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
-              {diff.locDelta >= 0 ? "+" : ""}{diff.locDelta}
+              {diff.locDelta >= 0 ? "+" : ""}
+              {diff.locDelta}
             </span>
             <span className="ml-2 text-sm font-normal text-zinc-500">lines</span>
           </CardTitle>
@@ -161,7 +157,6 @@ export function DiffPageContent({ version }: DiffPageContentProps) {
         </Card>
       </div>
 
-      {/* Version Info Comparison */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Card className="border-l-4 border-l-red-300 dark:border-l-red-700">
           <CardHeader>
@@ -187,7 +182,6 @@ export function DiffPageContent({ version }: DiffPageContentProps) {
         </Card>
       </div>
 
-      {/* Code Diff */}
       <div>
         <h2 className="mb-4 text-xl font-semibold">Source Code Diff</h2>
         <CodeDiff

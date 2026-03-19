@@ -34,6 +34,8 @@ Agent --[spawn A]--[spawn B]--[other work]----
 
 1. BackgroundManager 用线程安全的通知队列追踪任务。
 
+<Lang when="python">
+
 ```python
 class BackgroundManager:
     def __init__(self):
@@ -42,7 +44,22 @@ class BackgroundManager:
         self._lock = threading.Lock()
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+class BackgroundManager {
+  tasks: Record<string, BackgroundTask> = {};
+  private notificationQueue: Array<{ task_id: string; status: string; result: string }> = [];
+}
+```
+
+</Lang>
+
 2. `run()` 启动守护线程, 立即返回。
+
+<Lang when="python">
 
 ```python
 def run(self, command: str) -> str:
@@ -54,7 +71,24 @@ def run(self, command: str) -> str:
     return f"Background task {task_id} started"
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+run(command: string) {
+  const taskId = randomUUID().slice(0, 8);
+  this.tasks[taskId] = { status: "running", result: null, command };
+  const child = spawn(shell, args, { cwd: WORKDIR });
+  return `Background task ${taskId} started`;
+}
+```
+
+</Lang>
+
 3. 子进程完成后, 结果进入通知队列。
+
+<Lang when="python">
 
 ```python
 def _execute(self, task_id, command):
@@ -69,7 +103,25 @@ def _execute(self, task_id, command):
             "task_id": task_id, "result": output[:500]})
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+child.on("close", () => {
+  this.notificationQueue.push({
+    task_id: taskId,
+    status: "completed",
+    result: result.slice(0, 500),
+  });
+});
+```
+
+</Lang>
+
 4. 每次 LLM 调用前排空通知队列。
+
+<Lang when="python">
 
 ```python
 def agent_loop(messages: list):
@@ -86,6 +138,22 @@ def agent_loop(messages: list):
         response = client.messages.create(...)
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+const notifications = BG.drainNotifications();
+if (notifications.length) {
+  messages.push({
+    role: "user",
+    content: `<background-results>\n${notifText}\n</background-results>`,
+  });
+}
+```
+
+</Lang>
+
 循环保持单线程。只有子进程 I/O 被并行化。
 
 ## 相对 s07 的变更
@@ -101,11 +169,29 @@ def agent_loop(messages: list):
 
 ```sh
 cd learn-claude-code
+```
+
+<Lang when="python">
+
+```sh
 python agents/s08_background_tasks.py
 ```
 
-试试这些 prompt (英文 prompt 对 LLM 效果更好, 也可以用中文):
+</Lang>
+
+<Lang when="ts">
+
+```sh
+cd agents-ts
+npm install
+npm run s08
+```
+
+</Lang>
+
+试试这些 prompt:
 
 1. `Run "sleep 5 && echo done" in the background, then create a file while it runs`
 2. `Start 3 background tasks: "sleep 2", "sleep 4", "sleep 6". Check their status.`
 3. `Run pytest in the background and keep working on other things`
+

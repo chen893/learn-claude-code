@@ -39,6 +39,8 @@ Communication:
 
 1. TeammateManager 通过 config.json 维护团队名册。
 
+<Lang when="python">
+
 ```python
 class TeammateManager:
     def __init__(self, team_dir: Path):
@@ -49,7 +51,22 @@ class TeammateManager:
         self.threads = {}
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+class TeammateManager {
+  private configPath = resolve(teamDir, "config.json");
+  private config: TeamConfig = this.loadConfig();
+}
+```
+
+</Lang>
+
 2. `spawn()` 创建队友并在线程中启动 agent loop。
+
+<Lang when="python">
 
 ```python
 def spawn(self, name: str, role: str, prompt: str) -> str:
@@ -63,7 +80,24 @@ def spawn(self, name: str, role: str, prompt: str) -> str:
     return f"Spawned teammate '{name}' (role: {role})"
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+spawn(name: string, role: string, prompt: string) {
+  this.config.members.push({ name, role, status: "working" });
+  this.saveConfig();
+  void this.teammateLoop(name, role, prompt);
+  return `Spawned '${name}' (role: ${role})`;
+}
+```
+
+</Lang>
+
 3. MessageBus: append-only 的 JSONL 收件箱。`send()` 追加一行; `read_inbox()` 读取全部并清空。
+
+<Lang when="python">
 
 ```python
 class MessageBus:
@@ -83,7 +117,29 @@ class MessageBus:
         return json.dumps(msgs, indent=2)
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+class MessageBus {
+  send(sender: string, to: string, content: string) {
+    appendFileSync(resolve(this.inboxDir, `${to}.jsonl`), `${JSON.stringify({ from: sender, content })}\n`);
+  }
+
+  readInbox(name: string) {
+    const lines = readFileSync(resolve(this.inboxDir, `${name}.jsonl`), "utf8").split(/\r?\n/).filter(Boolean);
+    writeFileSync(resolve(this.inboxDir, `${name}.jsonl`), "", "utf8");
+    return lines.map((line) => JSON.parse(line));
+  }
+}
+```
+
+</Lang>
+
 4. 每个队友在每次 LLM 调用前检查收件箱, 将消息注入上下文。
+
+<Lang when="python">
 
 ```python
 def _teammate_loop(self, name, role, prompt):
@@ -102,6 +158,19 @@ def _teammate_loop(self, name, role, prompt):
     self._find_member(name)["status"] = "idle"
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+for (const message of BUS.readInbox(name)) {
+  messages.push({ role: "user", content: JSON.stringify(message) });
+}
+const response = await client.messages.create(...);
+```
+
+</Lang>
+
 ## 相对 s08 的变更
 
 | 组件           | 之前 (s08)       | 之后 (s09)                         |
@@ -117,13 +186,31 @@ def _teammate_loop(self, name, role, prompt):
 
 ```sh
 cd learn-claude-code
+```
+
+<Lang when="python">
+
+```sh
 python agents/s09_agent_teams.py
 ```
 
-试试这些 prompt (英文 prompt 对 LLM 效果更好, 也可以用中文):
+</Lang>
+
+<Lang when="ts">
+
+```sh
+cd agents-ts
+npm install
+npm run s09
+```
+
+</Lang>
+
+试试这些 prompt:
 
 1. `Spawn alice (coder) and bob (tester). Have alice send bob a message.`
 2. `Broadcast "status update: phase 1 complete" to all teammates`
 3. `Check the lead inbox for any messages`
 4. 输入 `/team` 查看团队名册和状态
 5. 输入 `/inbox` 手动检查领导的收件箱
+

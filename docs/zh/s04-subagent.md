@@ -12,7 +12,7 @@
 
 ## 解决方案
 
-```
+```text
 Parent agent                     Subagent
 +------------------+             +------------------+
 | messages=[...]   |             | messages=[]      | <-- fresh
@@ -30,6 +30,8 @@ Parent context stays clean. Subagent context is discarded.
 
 1. 父智能体有一个 `task` 工具。子智能体拥有除 `task` 外的所有基础工具 (禁止递归生成)。
 
+<Lang when="python">
+
 ```python
 PARENT_TOOLS = CHILD_TOOLS + [
     {"name": "task",
@@ -42,7 +44,33 @@ PARENT_TOOLS = CHILD_TOOLS + [
 ]
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+const PARENT_TOOLS = [
+  ...CHILD_TOOLS,
+  {
+    name: "task",
+    description: "Spawn a subagent with fresh context.",
+    input_schema: {
+      type: "object",
+      properties: {
+        prompt: { type: "string" },
+        description: { type: "string" },
+      },
+      required: ["prompt"],
+    },
+  },
+];
+```
+
+</Lang>
+
 2. 子智能体以 `messages=[]` 启动, 运行自己的循环。只有最终文本返回给父智能体。
+
+<Lang when="python">
 
 ```python
 def run_subagent(prompt: str) -> str:
@@ -71,6 +99,52 @@ def run_subagent(prompt: str) -> str:
     ) or "(no summary)"
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+async function runSubagent(prompt: string): Promise<string> {
+  const subMessages: Message[] = [{ role: "user", content: prompt }];
+
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const response = await client.messages.create({
+      model: MODEL,
+      system: SUBAGENT_SYSTEM,
+      messages: subMessages,
+      tools: CHILD_TOOLS,
+      max_tokens: 8000,
+    });
+
+    subMessages.push({ role: "assistant", content: response.content });
+    if (response.stop_reason !== "tool_use") {
+      return response.content
+        .filter((block) => block.type === "text")
+        .map((block) => block.text)
+        .join("") || "(no summary)";
+    }
+
+    const results = [];
+    for (const block of response.content) {
+      if (block.type !== "tool_use") continue;
+      const handler = TOOL_HANDLERS[block.name as ToolUseName];
+      const output = handler(block.input as Record<string, unknown>);
+      results.push({
+        type: "tool_result" as const,
+        tool_use_id: block.id,
+        content: String(output).slice(0, 50000),
+      });
+    }
+
+    subMessages.push({ role: "user", content: results });
+  }
+
+  return "(no summary)";
+}
+```
+
+</Lang>
+
 子智能体可能跑了 30+ 次工具调用, 但整个消息历史直接丢弃。父智能体收到的只是一段摘要文本, 作为普通 `tool_result` 返回。
 
 ## 相对 s03 的变更
@@ -86,6 +160,11 @@ def run_subagent(prompt: str) -> str:
 
 ```sh
 cd learn-claude-code
+```
+
+<Lang when="python">
+
+```sh
 python agents/s04_subagent.py
 ```
 
@@ -94,3 +173,21 @@ python agents/s04_subagent.py
 1. `Use a subtask to find what testing framework this project uses`
 2. `Delegate: read all .py files and summarize what each one does`
 3. `Use a task to create a new module, then verify it from here`
+
+</Lang>
+
+<Lang when="ts">
+
+```sh
+cd agents-ts
+npm install
+npm run s04
+```
+
+试试这些 prompt (英文 prompt 对 LLM 效果更好, 也可以用中文):
+
+1. `Use a subtask to find what testing framework this project uses`
+2. `Delegate: read all .ts files and summarize what each one does`
+3. `Use a task to create a new module, then verify it from here`
+
+</Lang>

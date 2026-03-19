@@ -38,12 +38,27 @@ State machines:
 
 1. **Create a task.** Persist the goal first.
 
+<Lang when="python">
+
 ```python
 TASKS.create("Implement auth refactor")
 # -> .tasks/task_1.json  status=pending  worktree=""
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+TASKS.create("Implement auth refactor");
+// -> .tasks/task_1.json  status=pending  worktree=""
+```
+
+</Lang>
+
 2. **Create a worktree and bind to the task.** Passing `task_id` auto-advances the task to `in_progress`.
+
+<Lang when="python">
 
 ```python
 WORKTREES.create("auth-refactor", task_id=1)
@@ -51,7 +66,20 @@ WORKTREES.create("auth-refactor", task_id=1)
 # -> index.json gets new entry, task_1.json gets worktree="auth-refactor"
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+WORKTREES.create("auth-refactor", 1);
+// -> index.json gets new entry, task_1.json gets worktree="auth-refactor"
+```
+
+</Lang>
+
 The binding writes state to both sides:
+
+<Lang when="python">
 
 ```python
 def bind_worktree(self, task_id, worktree):
@@ -62,16 +90,45 @@ def bind_worktree(self, task_id, worktree):
     self._save(task)
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+bindWorktree(taskId: number, worktree: string) {
+  const task = this.load(taskId);
+  task.worktree = worktree;
+  if (task.status === "pending") task.status = "in_progress";
+  this.save(task);
+}
+```
+
+</Lang>
+
 3. **Run commands in the worktree.** `cwd` points to the isolated directory.
+
+<Lang when="python">
 
 ```python
 subprocess.run(command, shell=True, cwd=worktree_path,
                capture_output=True, text=True, timeout=300)
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+runCommand(command, worktree.path, 300_000);
+```
+
+</Lang>
+
 4. **Close out.** Two choices:
    - `worktree_keep(name)` -- preserve the directory for later.
    - `worktree_remove(name, complete_task=True)` -- remove directory, complete the bound task, emit event. One call handles teardown + completion.
+
+<Lang when="python">
 
 ```python
 def remove(self, name, force=False, complete_task=False):
@@ -81,6 +138,21 @@ def remove(self, name, force=False, complete_task=False):
         self.tasks.unbind_worktree(wt["task_id"])
         self.events.emit("task.completed", ...)
 ```
+
+</Lang>
+
+<Lang when="ts">
+
+```ts
+remove(name: string, force = false, completeTask = false) {
+  if (completeTask && worktree.task_id) {
+    this.tasks.update(worktree.task_id, "completed");
+    this.tasks.unbindWorktree(worktree.task_id);
+  }
+}
+```
+
+</Lang>
 
 5. **Event stream.** Every lifecycle step emits to `.worktrees/events.jsonl`:
 
@@ -111,11 +183,29 @@ After a crash, state reconstructs from `.tasks/` + `.worktrees/index.json` on di
 
 ```sh
 cd learn-claude-code
+```
+
+<Lang when="python">
+
+```sh
 python agents/s12_worktree_task_isolation.py
 ```
+
+</Lang>
+
+<Lang when="ts">
+
+```sh
+cd agents-ts
+npm install
+npm run s12
+```
+
+</Lang>
 
 1. `Create tasks for backend auth and frontend login page, then list tasks.`
 2. `Create worktree "auth-refactor" for task 1, then bind task 2 to a new worktree "ui-login".`
 3. `Run "git status --short" in worktree "auth-refactor".`
 4. `Keep worktree "ui-login", then list worktrees and inspect events.`
 5. `Remove worktree "auth-refactor" with complete_task=true, then list tasks/worktrees/events.`
+

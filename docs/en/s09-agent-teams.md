@@ -39,6 +39,8 @@ Communication:
 
 1. TeammateManager maintains config.json with the team roster.
 
+<Lang when="python">
+
 ```python
 class TeammateManager:
     def __init__(self, team_dir: Path):
@@ -49,7 +51,22 @@ class TeammateManager:
         self.threads = {}
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+class TeammateManager {
+  private configPath = resolve(teamDir, "config.json");
+  private config: TeamConfig = this.loadConfig();
+}
+```
+
+</Lang>
+
 2. `spawn()` creates a teammate and starts its agent loop in a thread.
+
+<Lang when="python">
 
 ```python
 def spawn(self, name: str, role: str, prompt: str) -> str:
@@ -63,7 +80,24 @@ def spawn(self, name: str, role: str, prompt: str) -> str:
     return f"Spawned teammate '{name}' (role: {role})"
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+spawn(name: string, role: string, prompt: string) {
+  this.config.members.push({ name, role, status: "working" });
+  this.saveConfig();
+  void this.teammateLoop(name, role, prompt);
+  return `Spawned '${name}' (role: ${role})`;
+}
+```
+
+</Lang>
+
 3. MessageBus: append-only JSONL inboxes. `send()` appends a JSON line; `read_inbox()` reads all and drains.
+
+<Lang when="python">
 
 ```python
 class MessageBus:
@@ -83,7 +117,29 @@ class MessageBus:
         return json.dumps(msgs, indent=2)
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+class MessageBus {
+  send(sender: string, to: string, content: string) {
+    appendFileSync(resolve(this.inboxDir, `${to}.jsonl`), `${JSON.stringify({ from: sender, content })}\n`);
+  }
+
+  readInbox(name: string) {
+    const lines = readFileSync(resolve(this.inboxDir, `${name}.jsonl`), "utf8").split(/\r?\n/).filter(Boolean);
+    writeFileSync(resolve(this.inboxDir, `${name}.jsonl`), "", "utf8");
+    return lines.map((line) => JSON.parse(line));
+  }
+}
+```
+
+</Lang>
+
 4. Each teammate checks its inbox before every LLM call, injecting received messages into context.
+
+<Lang when="python">
 
 ```python
 def _teammate_loop(self, name, role, prompt):
@@ -102,6 +158,19 @@ def _teammate_loop(self, name, role, prompt):
     self._find_member(name)["status"] = "idle"
 ```
 
+</Lang>
+
+<Lang when="ts">
+
+```ts
+for (const message of BUS.readInbox(name)) {
+  messages.push({ role: "user", content: JSON.stringify(message) });
+}
+const response = await client.messages.create(...);
+```
+
+</Lang>
+
 ## What Changed From s08
 
 | Component      | Before (s08)     | After (s09)                |
@@ -117,11 +186,29 @@ def _teammate_loop(self, name, role, prompt):
 
 ```sh
 cd learn-claude-code
+```
+
+<Lang when="python">
+
+```sh
 python agents/s09_agent_teams.py
 ```
+
+</Lang>
+
+<Lang when="ts">
+
+```sh
+cd agents-ts
+npm install
+npm run s09
+```
+
+</Lang>
 
 1. `Spawn alice (coder) and bob (tester). Have alice send bob a message.`
 2. `Broadcast "status update: phase 1 complete" to all teammates`
 3. `Check the lead inbox for any messages`
 4. Type `/team` to see the team roster with statuses
 5. Type `/inbox` to manually check the lead's inbox
+
