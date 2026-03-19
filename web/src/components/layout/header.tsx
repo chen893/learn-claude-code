@@ -7,7 +7,7 @@ import { useState } from "react";
 import { LanguageToggle } from "@/components/layout/language-toggle";
 import { usePreferredLanguage, writePreferredLanguage } from "@/hooks/usePreferredLanguage";
 import { useLocale, useTranslations } from "@/lib/i18n";
-import { getPathnameForLanguage } from "@/lib/learning";
+import { getLanguageFromPathname, getPathnameForLanguage } from "@/lib/learning";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -27,6 +27,7 @@ export function Header() {
   const pathname = usePathname();
   const locale = useLocale();
   const preferredLanguage = usePreferredLanguage();
+  const activeLanguage = getLanguageFromPathname(pathname);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dark, setDark] = useState(() => {
     if (typeof window !== "undefined") {
@@ -81,7 +82,7 @@ export function Header() {
           ))}
 
           <LanguageToggle
-            value={preferredLanguage}
+            value={activeLanguage || preferredLanguage}
             options={[
               { value: "python", label: "Python" },
               { value: "ts", label: "TypeScript" },
@@ -146,7 +147,7 @@ export function Header() {
 
           <div className="mt-3 border-t border-[var(--color-border)] pt-3">
             <LanguageToggle
-              value={preferredLanguage}
+              value={activeLanguage || preferredLanguage}
               options={[
                 { value: "python", label: "Python" },
                 { value: "ts", label: "TypeScript" },

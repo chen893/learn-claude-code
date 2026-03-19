@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getCorePatternExample, getPathnameForLanguage } from "./learning";
+import { getCorePatternExample, getLanguageFromPathname, getPathnameForLanguage } from "./learning";
 
 function flattenExample(example: ReturnType<typeof getCorePatternExample>) {
   return example.lines.map((line) => line.map((token) => token.text).join("")).join("\n");
@@ -16,6 +16,14 @@ test("getPathnameForLanguage rewrites diff page language segment", () => {
 
 test("getPathnameForLanguage keeps non-language routes unchanged", () => {
   assert.equal(getPathnameForLanguage("/ja/timeline", "ts"), "/ja/timeline");
+});
+
+test("getLanguageFromPathname reads the language segment from detail routes", () => {
+  assert.equal(getLanguageFromPathname("/en/ts/s01"), "ts");
+});
+
+test("getLanguageFromPathname falls back to default for non-language routes", () => {
+  assert.equal(getLanguageFromPathname("/en/timeline"), "python");
 });
 
 test("getCorePatternExample returns python homepage sample", () => {
