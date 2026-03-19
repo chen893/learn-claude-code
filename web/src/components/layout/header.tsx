@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Github, Menu, Moon, Sun, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LanguageToggle } from "@/components/layout/language-toggle";
 import { usePreferredLanguage, writePreferredLanguage } from "@/hooks/usePreferredLanguage";
 import { useLocale, useTranslations } from "@/lib/i18n";
-import { getPathnameForLanguage } from "@/lib/learning";
+import { getPathnameForLanguage, resolveActiveLanguage } from "@/lib/learning";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -28,6 +28,7 @@ export function Header() {
   const locale = useLocale();
   const preferredLanguage = usePreferredLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [browserPathname, setBrowserPathname] = useState<string | null>(null);
   const [dark, setDark] = useState(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("theme");
@@ -36,6 +37,11 @@ export function Header() {
     }
     return false;
   });
+  const activeLanguage = resolveActiveLanguage(pathname, browserPathname, preferredLanguage);
+
+  useEffect(() => {
+    setBrowserPathname(window.location.pathname);
+  }, [pathname]);
 
   function toggleDark() {
     const next = !dark;
@@ -81,7 +87,7 @@ export function Header() {
           ))}
 
           <LanguageToggle
-            value={preferredLanguage}
+            value={activeLanguage}
             options={[
               { value: "python", label: "Python" },
               { value: "ts", label: "TypeScript" },
@@ -146,7 +152,7 @@ export function Header() {
 
           <div className="mt-3 border-t border-[var(--color-border)] pt-3">
             <LanguageToggle
-              value={preferredLanguage}
+              value={activeLanguage}
               options={[
                 { value: "python", label: "Python" },
                 { value: "ts", label: "TypeScript" },

@@ -116,6 +116,15 @@ function normalizeLanguage(language?: string): LearningLanguage {
     : DEFAULT_LANGUAGE;
 }
 
+export function getPathLanguageFromPathname(pathname: string | null): LearningLanguage | null {
+  if (!pathname) return null;
+  const segments = pathname.split("/").filter(Boolean);
+  const candidate = segments[1];
+  return LEARNING_LANGUAGES.includes(candidate as LearningLanguage)
+    ? (candidate as LearningLanguage)
+    : null;
+}
+
 export function getLearningPath(): readonly VersionId[] {
   return LEARNING_PATH;
 }
@@ -209,9 +218,22 @@ export function getNextVersionId(versionId: string): VersionId | null {
 }
 
 export function getLanguageFromPathname(pathname: string | null): LearningLanguage {
-  if (!pathname) return DEFAULT_LANGUAGE;
-  const segments = pathname.split("/").filter(Boolean);
-  return normalizeLanguage(segments[1]);
+  return getPathLanguageFromPathname(pathname) ?? DEFAULT_LANGUAGE;
+}
+
+export function resolveActiveLanguage(
+  pathname: string | null,
+  browserPathname: string | null,
+  preferredLanguage?: string | null
+): LearningLanguage {
+  return (
+    getPathLanguageFromPathname(pathname) ??
+    getPathLanguageFromPathname(browserPathname) ??
+    (preferredLanguage && LEARNING_LANGUAGES.includes(preferredLanguage as LearningLanguage)
+      ? (preferredLanguage as LearningLanguage)
+      : null) ??
+    DEFAULT_LANGUAGE
+  );
 }
 
 export function getPathnameForLanguage(
